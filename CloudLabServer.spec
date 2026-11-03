@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['c:/Users/ANANTH KARTHIK/Desktop/CloudLab Intel/run_system.py'],
+    ['run_system.py'],
     pathex=[],
     binaries=[],
-    datas=[('static', 'static'), ('backend', 'backend')],
+    datas=[('static', 'static'), ('backend', 'backend'), ('authorized_admins.json', '.'), ('.env', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -36,3 +36,4 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
+

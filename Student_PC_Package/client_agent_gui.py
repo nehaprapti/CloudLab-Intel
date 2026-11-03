@@ -13,6 +13,7 @@ import socket
 import getpass
 import threading
 import requests
+import re
 import tkinter as tk
 from tkinter import messagebox, ttk
 from datetime import datetime
@@ -149,19 +150,32 @@ def get_active_window_metadata():
 class StudentAgentApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("CloudLab Intelligence - Student Workstation Login")
-        self.root.geometry("440x480")
+        self.root.title("CloudLab Intelligence • Student Workstation")
+        w, h = 480, 680
+        # Auto-center on monitor
+        try:
+            sw = self.root.winfo_screenwidth()
+            sh = self.root.winfo_screenheight()
+            x = max(0, (sw - w) // 2)
+            y = max(0, (sh - h) // 2 - 25)
+            self.root.geometry(f"{w}x{h}+{x}+{y}")
+        except Exception:
+            self.root.geometry(f"{w}x{h}")
+
         self.root.resizable(False, False)
-        self.root.configure(bg="#0f172a")
+        self.root.configure(bg="#f1f5f9")
 
         self.hostname, self.ip = get_hostname_and_ip()
         self.system_username = get_system_login_username()
         self.session_id = None
         self.reg_no = None
         self.student_name = None
+        self.phone_number = None
         self.pc_id = self.system_username
         self.is_monitoring = False
         self.edge_url = self.load_edge_url()
+        self.cooldown_remaining = 0
+        self.cooldown_timer_id = None
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close_window)
         self.build_ui()
@@ -185,85 +199,164 @@ class StudentAgentApp:
             pass
 
     def build_ui(self):
-        # Header
-        header_frame = tk.Frame(self.root, bg="#1e293b", pady=12)
-        header_frame.pack(fill="x")
+        # 1. Header with Deep Navy Gradient / Modern Banner
+        header = tk.Frame(self.root, bg="#0f172a", pady=14, padx=20)
+        header.pack(fill="x")
 
+        # Top tag
         tk.Label(
-            header_frame,
-            text="CloudLab Intelligence",
-            font=("Helvetica", 14, "bold"),
-            fg="#60a5fa",
-            bg="#1e293b"
-        ).pack()
-
-        tk.Label(
-            header_frame,
-            text="Sona College of Technology • Dept of IT",
-            font=("Helvetica", 9),
+            header,
+            text="SONA COLLEGE OF TECHNOLOGY  •  DEPT OF IT",
+            font=("Segoe UI", 8, "bold"),
             fg="#94a3b8",
-            bg="#1e293b"
+            bg="#0f172a"
         ).pack()
 
-        # Body Form
-        body = tk.Frame(self.root, bg="#0f172a", padx=25, pady=12)
+        # Brand Title
+        tk.Label(
+            header,
+            text="CloudLab Intelligence",
+            font=("Segoe UI", 15, "bold"),
+            fg="#ffffff",
+            bg="#0f172a"
+        ).pack(pady=(2, 4))
+
+        # Security Badge Pill
+        badge_frame = tk.Frame(header, bg="#064e3b", padx=10, pady=3, highlightbackground="#059669", highlightthickness=1)
+        badge_frame.pack()
+        tk.Label(
+            badge_frame,
+            text="🔐 Two-Factor Email OTP Workstation Security",
+            font=("Segoe UI", 8, "bold"),
+            fg="#34d399",
+            bg="#064e3b"
+        ).pack()
+
+        # 2. Main Card Container (Floating Card Style)
+        card_outer = tk.Frame(self.root, bg="#f1f5f9", padx=16, pady=12)
+        card_outer.pack(fill="both", expand=True)
+
+        body = tk.Frame(card_outer, bg="#ffffff", padx=20, pady=16, highlightbackground="#e2e8f0", highlightthickness=1)
         body.pack(fill="both", expand=True)
 
-        # Placeholder helper function
-        def setup_placeholder(entry, placeholder_text):
+        # Helper for focus highlights and placeholders
+        def style_entry(entry, placeholder_text):
             entry.insert(0, placeholder_text)
-            entry.config(fg="#94a3b8")
+            entry.config(fg="#94a3b8", bg="#f8fafc", highlightbackground="#cbd5e1", highlightcolor="#2563eb", highlightthickness=1)
 
             def on_focus_in(event):
                 if entry.get() == placeholder_text:
                     entry.delete(0, tk.END)
-                    entry.config(fg="#ffffff")
+                    entry.config(fg="#0f172a", bg="#ffffff")
+                entry.config(highlightbackground="#2563eb")
 
             def on_focus_out(event):
                 if not entry.get().strip():
                     entry.insert(0, placeholder_text)
-                    entry.config(fg="#94a3b8")
+                    entry.config(fg="#94a3b8", bg="#f8fafc")
+                entry.config(highlightbackground="#cbd5e1")
 
             entry.bind("<FocusIn>", on_focus_in)
             entry.bind("<FocusOut>", on_focus_out)
 
-        # Reg No
-        tk.Label(body, text="Register Number:", font=("Helvetica", 9, "bold"), fg="#e2e8f0", bg="#0f172a").pack(anchor="w", pady=(2, 2))
-        self.entry_reg = tk.Entry(body, font=("Helvetica", 10), bg="#1e293b", fg="#ffffff", insertbackground="white", relief="flat", highlightthickness=1, highlightcolor="#3b82f6")
-        self.entry_reg.pack(fill="x", ipady=3, pady=(0, 8))
-        setup_placeholder(self.entry_reg, "Enter your Register Number (e.g. 61782323106044)")
+        # Helper for modern button hover effect
+        def add_hover(btn, normal_bg, hover_bg):
+            btn.bind("<Enter>", lambda e: btn.config(bg=hover_bg) if str(btn["state"]) != "disabled" else None)
+            btn.bind("<Leave>", lambda e: btn.config(bg=normal_bg) if str(btn["state"]) != "disabled" else None)
 
-        # Name
-        tk.Label(body, text="Student Name:", font=("Helvetica", 9, "bold"), fg="#e2e8f0", bg="#0f172a").pack(anchor="w", pady=(2, 2))
-        self.entry_name = tk.Entry(body, font=("Helvetica", 10), bg="#1e293b", fg="#ffffff", insertbackground="white", relief="flat", highlightthickness=1, highlightcolor="#3b82f6")
-        self.entry_name.pack(fill="x", ipady=3, pady=(0, 8))
-        setup_placeholder(self.entry_name, "Enter your Full Name")
+        # 1. Reg No
+        tk.Label(body, text="🎓  Student Register Number:", font=("Segoe UI", 9, "bold"), fg="#1e293b", bg="#ffffff").pack(anchor="w", pady=(1, 2))
+        self.entry_reg = tk.Entry(body, font=("Segoe UI", 9), relief="flat")
+        self.entry_reg.pack(fill="x", ipady=4, pady=(0, 8))
+        style_entry(self.entry_reg, "Enter your Register Number (e.g. 61782323106044)")
 
-        # Workstation PC ID Selector (Auto-filled with Windows Login Username)
-        tk.Label(body, text="Assigned Workstation PC / Login User:", font=("Helvetica", 9, "bold"), fg="#e2e8f0", bg="#0f172a").pack(anchor="w", pady=(2, 2))
+        # 2. Student Name
+        tk.Label(body, text="👤  Student Full Name:", font=("Segoe UI", 9, "bold"), fg="#1e293b", bg="#ffffff").pack(anchor="w", pady=(1, 2))
+        self.entry_name = tk.Entry(body, font=("Segoe UI", 9), relief="flat")
+        self.entry_name.pack(fill="x", ipady=4, pady=(0, 8))
+        style_entry(self.entry_name, "Enter your Full Name")
+
+        # 3. Student Registered Email ID + Send OTP Row
+        tk.Label(body, text="✉️  Registered Student Email ID (for OTP):", font=("Segoe UI", 9, "bold"), fg="#1e293b", bg="#ffffff").pack(anchor="w", pady=(1, 2))
+        email_row = tk.Frame(body, bg="#ffffff")
+        email_row.pack(fill="x", pady=(0, 4))
+
+        self.entry_email = tk.Entry(email_row, font=("Segoe UI", 9), relief="flat")
+        self.entry_email.pack(side="left", fill="x", expand=True, ipady=4, padx=(0, 8))
+        style_entry(self.entry_email, "Enter your Email ID (e.g. name@gmail.com)")
+
+        self.btn_send_otp = tk.Button(
+            email_row,
+            text="Send OTP",
+            font=("Segoe UI", 9, "bold"),
+            bg="#2563eb",
+            fg="white",
+            activebackground="#1d4ed8",
+            activeforeground="white",
+            relief="flat",
+            cursor="hand2",
+            padx=12,
+            command=self.request_otp_action
+        )
+        self.btn_send_otp.pack(side="right", ipady=3)
+        add_hover(self.btn_send_otp, "#2563eb", "#1d4ed8")
+
+        # OTP Info / Feedback Box (Soft Blue Alert Pill)
+        self.otp_info_frame = tk.Frame(body, bg="#eff6ff", padx=10, pady=5, highlightbackground="#bfdbfe", highlightthickness=1)
+        self.otp_info_frame.pack(fill="x", pady=(0, 8))
+
+        self.lbl_otp_info = tk.Label(
+            self.otp_info_frame,
+            text="📩 A 6-digit verification code will be sent to your Gmail inbox.",
+            font=("Segoe UI", 8),
+            fg="#1d4ed8",
+            bg="#eff6ff",
+            wraplength=380,
+            justify="left"
+        )
+        self.lbl_otp_info.pack(anchor="w")
+
+        # 4. 6-digit OTP Code Entry (Prominent Monospace Entry)
+        tk.Label(body, text="🔑  Enter 6-Digit Email OTP Received:", font=("Segoe UI", 9, "bold"), fg="#1e293b", bg="#ffffff").pack(anchor="w", pady=(1, 2))
+        self.entry_otp = tk.Entry(
+            body,
+            font=("Consolas", 12, "bold"),
+            bg="#f8fafc",
+            fg="#0f172a",
+            insertbackground="#0f172a",
+            relief="flat",
+            justify="center",
+            highlightbackground="#93c5fd",
+            highlightcolor="#2563eb",
+            highlightthickness=1
+        )
+        self.entry_otp.pack(fill="x", ipady=4, pady=(0, 8))
+        style_entry(self.entry_otp, "Enter 6-digit OTP code")
+
+        # 5. Workstation PC ID Selector
+        tk.Label(body, text="🖥️  Assigned Workstation PC:", font=("Segoe UI", 9, "bold"), fg="#1e293b", bg="#ffffff").pack(anchor="w", pady=(1, 2))
         pc_options = [self.system_username]
         if self.hostname and self.hostname not in pc_options:
             pc_options.append(self.hostname)
         pc_options += ["PC-ADMIN-01"] + [f"PC-LAB1-{i:02d}" for i in range(1, 71)]
-        
         seen = set()
         final_pc_options = [x for x in pc_options if not (x in seen or seen.add(x))]
 
-        self.combo_pc = ttk.Combobox(body, values=final_pc_options, font=("Helvetica", 10), state="normal")
+        self.combo_pc = ttk.Combobox(body, values=final_pc_options, font=("Segoe UI", 9), state="normal")
         self.combo_pc.pack(fill="x", ipady=3, pady=(0, 8))
         self.combo_pc.set(self.system_username)
 
-        # Edge Server URL
-        tk.Label(body, text="Master / Edge Server URL:", font=("Helvetica", 8), fg="#94a3b8", bg="#0f172a").pack(anchor="w", pady=(2, 1))
-        self.entry_url = tk.Entry(body, font=("Helvetica", 9), bg="#1e293b", fg="#94a3b8", insertbackground="white", relief="flat")
+        # 6. Edge Server URL
+        tk.Label(body, text="🌐  Master / Edge Server URL:", font=("Segoe UI", 8, "bold"), fg="#64748b", bg="#ffffff").pack(anchor="w", pady=(1, 1))
+        self.entry_url = tk.Entry(body, font=("Segoe UI", 8), bg="#f8fafc", fg="#475569", insertbackground="#0f172a", relief="flat", highlightbackground="#e2e8f0", highlightthickness=1)
         self.entry_url.pack(fill="x", ipady=2, pady=(0, 12))
         self.entry_url.insert(0, self.edge_url)
 
-        # Action Button
+        # 7. Action Button (Large Emerald Pill)
         self.btn_action = tk.Button(
             body,
-            text="Start Lab Session",
-            font=("Helvetica", 11, "bold"),
+            text="Verify OTP & Start Lab Session",
+            font=("Segoe UI", 10, "bold"),
             bg="#10b981",
             fg="white",
             activebackground="#059669",
@@ -272,17 +365,21 @@ class StudentAgentApp:
             cursor="hand2",
             command=self.toggle_session
         )
-        self.btn_action.pack(fill="x", ipady=6)
+        self.btn_action.pack(fill="x", ipady=7)
+        add_hover(self.btn_action, "#10b981", "#059669")
 
-        # Status Label
+        # 8. Footer Status Pill
+        status_bar = tk.Frame(self.root, bg="#e2e8f0", pady=6, padx=12)
+        status_bar.pack(fill="x", side="bottom")
+
         self.lbl_status = tk.Label(
-            body,
-            text=f"Host: {self.hostname} ({self.ip}) • Ready",
-            font=("Helvetica", 8),
-            fg="#64748b",
-            bg="#0f172a"
+            status_bar,
+            text=f"🟢 Live Node • Host: {self.hostname} ({self.ip}) • Ready",
+            font=("Segoe UI", 8, "bold"),
+            fg="#334155",
+            bg="#e2e8f0"
         )
-        self.lbl_status.pack(pady=8)
+        self.lbl_status.pack()
 
     def toggle_session(self):
         if not self.is_monitoring:
@@ -294,6 +391,9 @@ class StudentAgentApp:
         url = raw_url.strip()
         if not url:
             return DEFAULT_EDGE_URL
+        # Clean duplicated prefixes if student pasted full url e.g. "http://http://..."
+        while url.startswith("http://http://") or url.startswith("https://https://") or url.startswith("http://https://"):
+            url = url[7:]
         if not url.startswith("http://") and not url.startswith("https://"):
             url = f"http://{url}"
         host_part = url.replace("http://", "").replace("https://", "")
@@ -301,14 +401,148 @@ class StudentAgentApp:
             url = f"{url.rstrip('/')}:5001"
         return url.rstrip("/")
 
+    def request_otp_action(self):
+        raw_email = self.entry_email.get().strip().lower()
+        if not raw_email or raw_email.startswith("enter your") or "@" not in raw_email or "." not in raw_email:
+            messagebox.showwarning("Email Required", "Please enter your valid Student Email ID (e.g. name@gmail.com) to receive your verification code.")
+            self.entry_email.focus_set()
+            return
+
+        raw_url = self.entry_url.get().strip()
+        self.edge_url = self.normalize_url(raw_url)
+        self.save_edge_url(self.edge_url)
+
+        reg = self.entry_reg.get().strip().upper()
+        if reg.startswith("ENTER YOUR"):
+            reg = ""
+        name = self.entry_name.get().strip()
+        if name.startswith("ENTER YOUR"):
+            name = ""
+        pc_id = self.combo_pc.get().strip() if hasattr(self, 'combo_pc') else "Lab Workstation"
+
+        payload = {
+            "country_code": "",
+            "phone_number": raw_email,
+            "email": raw_email,
+            "reg_no": reg,
+            "student_name": name,
+            "pc_id": pc_id
+        }
+
+        self.btn_send_otp.config(state="disabled", text="Sending...")
+        self.lbl_otp_info.config(text="Connecting to mail service and sending OTP to your inbox...", fg="#2563eb")
+        self.root.update_idletasks()
+
+        targets_to_try = [self.edge_url]
+        if ":5001" in self.edge_url:
+            targets_to_try.append(self.edge_url.replace(":5001", ":5000"))
+        elif ":5000" in self.edge_url:
+            targets_to_try.append(self.edge_url.replace(":5000", ":5001"))
+        if "127.0.0.1" not in self.edge_url and "localhost" not in self.edge_url:
+            targets_to_try.extend(["http://127.0.0.1:5001", "http://127.0.0.1:5000"])
+
+        resp_data = None
+        success_url = None
+
+        for target in targets_to_try:
+            try:
+                # 20.0s timeout ensures Gmail SMTP TLS handshake (2-8s) completes without client timing out
+                r = requests.post(f"{target}/api/edge/send-otp", json=payload, timeout=20.0)
+                if r.status_code == 200:
+                    try:
+                        resp_data = r.json()
+                        success_url = target
+                        break
+                    except Exception:
+                        pass
+                elif r.status_code in (400, 401, 403, 429):
+                    try:
+                        resp_data = r.json()
+                    except Exception:
+                        resp_data = {"error": "Server error processing OTP request."}
+                    success_url = target
+                    break
+            except requests.exceptions.Timeout:
+                resp_data = {"error": "Email delivery timed out. Please check server internet connection or retry."}
+                break
+            except requests.exceptions.ConnectionError:
+                continue
+            except Exception:
+                continue
+
+        if not resp_data:
+            self.btn_send_otp.config(state="normal", text="Send OTP")
+            self.lbl_otp_info.config(text="Failed to connect to Master/Edge Server. Check server URL.", fg="#ef4444")
+            messagebox.showerror("Connection Failed", f"Could not reach server at {self.edge_url} to send OTP.\nPlease verify START_ADMIN_SERVER.bat is running.")
+            return
+
+        if resp_data.get("success"):
+            self.edge_url = success_url
+            self.entry_url.delete(0, tk.END)
+            self.entry_url.insert(0, self.edge_url)
+            self.save_edge_url(self.edge_url)
+
+            masked = resp_data.get("masked_phone", raw_email)
+            if hasattr(self, 'otp_info_frame'):
+                self.otp_info_frame.config(bg="#ecfdf5", highlightbackground="#a7f3d0")
+            self.lbl_otp_info.config(text=f"✅ OTP sent to {masked}. Check your Gmail inbox & enter code.", fg="#047857", bg="#ecfdf5")
+            if self.entry_otp.get().startswith("Enter 6-digit"):
+                self.entry_otp.delete(0, tk.END)
+                self.entry_otp.config(fg="#0f172a")
+            self.entry_otp.focus_set()
+
+            cooldown = resp_data.get("cooldown_seconds", 60)
+            self.start_cooldown_timer(cooldown)
+        else:
+            err_msg = resp_data.get("error", "Failed to dispatch OTP email.")
+            if hasattr(self, 'otp_info_frame'):
+                self.otp_info_frame.config(bg="#fef2f2", highlightbackground="#fecaca")
+            self.lbl_otp_info.config(text=f"❌ {err_msg}", fg="#b91c1c", bg="#fef2f2")
+            cooldown_rem = resp_data.get("cooldown_remaining", 0)
+            if cooldown_rem > 0:
+                self.start_cooldown_timer(cooldown_rem)
+            else:
+                self.btn_send_otp.config(state="normal", text="Send OTP")
+            messagebox.showerror("OTP Request Failed", err_msg)
+
+    def start_cooldown_timer(self, seconds):
+        if self.cooldown_timer_id:
+            try:
+                self.root.after_cancel(self.cooldown_timer_id)
+            except Exception:
+                pass
+        self.cooldown_remaining = seconds
+        self._update_cooldown_tick()
+
+    def _update_cooldown_tick(self):
+        if self.cooldown_remaining > 0:
+            self.btn_send_otp.config(state="disabled", text=f"Resend ({self.cooldown_remaining}s)")
+            self.cooldown_remaining -= 1
+            self.cooldown_timer_id = self.root.after(1000, self._update_cooldown_tick)
+        else:
+            self.btn_send_otp.config(state="normal", text="Resend OTP")
+            self.cooldown_timer_id = None
+
     def start_session(self):
         reg = self.entry_reg.get().strip().upper()
         name = self.entry_name.get().strip()
         pc = self.combo_pc.get().strip() or self.system_username or "PC-LAB1-01"
         raw_url = self.entry_url.get().strip()
+        raw_email = self.entry_email.get().strip().lower()
+        otp_code = self.entry_otp.get().strip()
 
         if not reg or reg.startswith("ENTER YOUR") or not name or name.startswith("ENTER YOUR"):
             messagebox.showerror("Input Required", "Please enter your Register Number and Full Name to begin.")
+            return
+
+        if not raw_email or raw_email.startswith("enter your") or "@" not in raw_email or "." not in raw_email:
+            messagebox.showerror("Email Required", "Please enter your registered Student Email ID (e.g. name@gmail.com).")
+            self.entry_email.focus_set()
+            return
+
+        if not otp_code or otp_code.startswith("Enter 6-digit") or len(otp_code) != 6 or not otp_code.isdigit():
+            messagebox.showerror("OTP Verification Required", "Please enter the 6-digit numeric OTP sent to your email.\n\nClick 'Send OTP' if you haven't received a code yet.")
+            self.entry_otp.focus_set()
             return
 
         self.edge_url = self.normalize_url(raw_url)
@@ -320,6 +554,7 @@ class StudentAgentApp:
         self.student_name = name
         self.pc_id = pc
         self.session_id = str(uuid.uuid4())
+        self.phone_number = raw_email
 
         payload = {
             "session_id": self.session_id,
@@ -327,6 +562,9 @@ class StudentAgentApp:
             "student_name": self.student_name,
             "lab_id": "LAB-01",
             "pc_id": self.pc_id,
+            "phone_number": self.phone_number,
+            "email": self.phone_number,
+            "otp": otp_code,
             "login_time": datetime.now().isoformat()
         }
 
@@ -334,22 +572,39 @@ class StudentAgentApp:
         targets_to_try = [self.edge_url]
         if ":5001" in self.edge_url:
             targets_to_try.append(self.edge_url.replace(":5001", ":5000"))
+        elif ":5000" in self.edge_url:
+            targets_to_try.append(self.edge_url.replace(":5000", ":5001"))
         if "127.0.0.1" not in self.edge_url and "localhost" not in self.edge_url:
             targets_to_try.extend(["http://127.0.0.1:5001", "http://127.0.0.1:5000"])
 
         connected_url = None
+        last_resp_data = None
         last_error = None
 
         for target in targets_to_try:
             try:
-                resp = requests.post(f"{target}/api/edge/login", json=payload, timeout=2.5)
+                resp = requests.post(f"{target}/api/edge/login", json=payload, timeout=8.0)
                 if resp.status_code == 200:
+                    try:
+                        last_resp_data = resp.json()
+                        if last_resp_data.get("success"):
+                            connected_url = target
+                            break
+                    except Exception:
+                        pass
+                elif resp.status_code in (400, 401, 403):
+                    try:
+                        last_resp_data = resp.json()
+                    except Exception:
+                        last_resp_data = {"error": "Authentication failed."}
                     connected_url = target
                     break
+            except requests.exceptions.ConnectionError:
+                continue
             except Exception as ex:
                 last_error = ex
 
-        if connected_url:
+        if connected_url and last_resp_data and last_resp_data.get("success"):
             self.edge_url = connected_url
             self.entry_url.delete(0, tk.END)
             self.entry_url.insert(0, self.edge_url)
@@ -357,9 +612,14 @@ class StudentAgentApp:
 
             self.is_monitoring = True
             self.btn_action.config(text="End Session & Logout", bg="#ef4444", activebackground="#dc2626")
-            self.lbl_status.config(text=f"🟢 Monitoring Active on {self.pc_id}!", fg="#34d399")
+            parts = self.phone_number.split("@")
+            masked = f"{parts[0][:2]}•••@{parts[1]}" if len(parts) == 2 and len(parts[0]) > 2 else self.phone_number
+            self.lbl_status.config(text=f"🟢 Monitoring Active on {self.pc_id}! Authenticated ({masked})", fg="#34d399")
             self.entry_reg.config(state="disabled")
             self.entry_name.config(state="disabled")
+            self.entry_email.config(state="disabled")
+            self.btn_send_otp.config(state="disabled")
+            self.entry_otp.config(state="disabled")
             self.combo_pc.config(state="disabled")
 
             # Minimize window to background so student can work
@@ -367,12 +627,18 @@ class StudentAgentApp:
 
             # Start real-time background monitoring thread
             threading.Thread(target=self.monitoring_loop, daemon=True).start()
+        elif last_resp_data and not last_resp_data.get("success"):
+            err_msg = last_resp_data.get("error", "Email OTP verification failed.")
+            messagebox.showerror(
+                "Authentication Denied",
+                f"Failed to authenticate session:\n\n{err_msg}\n\nPlease check your OTP and try again."
+            )
         else:
             messagebox.showerror(
                 "Connection Error",
                 f"Could not reach Master Server at {self.edge_url}.\n\n"
                 f"1. Make sure START_ADMIN_SERVER.bat is running on the Admin PC.\n"
-                f"2. Check that the URL includes port :5001 (e.g. http://127.0.0.1:5001 or http://<Admin-IP>:5001)."
+                f"2. Check that the URL includes port :5001 or :5000."
             )
 
     def stop_session(self):
@@ -396,11 +662,19 @@ class StudentAgentApp:
             pass
 
         self.is_monitoring = False
-        self.btn_action.config(text="Start Lab Session", bg="#10b981", activebackground="#059669")
+        self.btn_action.config(text="Verify OTP & Start Lab Session", bg="#10b981", activebackground="#059669")
         self.lbl_status.config(text="Session completed & PDF report saved.", fg="#60a5fa")
         self.entry_reg.config(state="normal")
         self.entry_name.config(state="normal")
+        self.entry_email.config(state="normal")
+        self.btn_send_otp.config(state="normal", text="Send OTP")
+        self.entry_otp.config(state="normal")
+        self.entry_otp.delete(0, tk.END)
         self.combo_pc.config(state="normal")
+        if hasattr(self, 'otp_info_frame'):
+            self.otp_info_frame.config(bg="#eff6ff", highlightbackground="#bfdbfe")
+        self.lbl_otp_info.config(text="Session ended. Enter credentials and verify OTP for next student.", fg="#1d4ed8", bg="#eff6ff")
+        self.lbl_status.config(text="Session completed & PDF report saved.", fg="#1e293b")
         messagebox.showinfo("Session Ended", f"Thank you {self.student_name}!\nYour lab activity & browser tab report has been securely saved to the Dispatch Center.")
 
     def on_close_window(self):

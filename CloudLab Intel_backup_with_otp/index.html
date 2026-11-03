@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudLab Intelligence - Edge-Cloud Student Digital Activity Analytics</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        edge: '#10b981',
+                        cloud: '#6366f1',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js for Interactive Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- ==================== ADMIN LOGIN DASHBOARD (START_ADMIN_SERVER GATEWAY) ==================== -->
+    <div id="admin-login-dashboard" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur-md p-4 sm:p-6 overflow-y-auto">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto animate-fade-in">
+            <!-- Institutional Header Banner -->
+            <div class="bg-gradient-to-tr from-slate-900 via-blue-900 to-indigo-900 p-6 text-white text-center relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl"></div>
+                <div class="inline-flex h-12 w-12 rounded-xl bg-white/10 backdrop-blur border border-white/20 items-center justify-center mb-2 shadow-inner">
+                    <i data-lucide="shield-check" class="h-6 w-6 text-emerald-400"></i>
+                </div>
+                <h2 class="text-xl font-bold tracking-tight">Admin Login Dashboard</h2>
+                <p class="text-xs text-blue-200 mt-1 font-medium">START_ADMIN_SERVER • Master Console Access</p>
+                <div class="mt-3 inline-block px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[11px] font-semibold tracking-wide">
+                    🔐 Two-Factor Email OTP Verification
+                </div>
+            </div>
+
+            <!-- Dynamic Alert / Error Box -->
+            <div id="admin-login-alert" class="hidden mx-6 mt-5 p-3.5 rounded-xl border text-xs flex items-start gap-2.5">
+                <i data-lucide="alert-circle" id="admin-login-alert-icon" class="h-4 w-4 flex-shrink-0 mt-0.5"></i>
+                <span id="admin-login-alert-msg" class="leading-relaxed font-semibold"></span>
+            </div>
+
+            <!-- STEP 1: Enter Name, Admin ID, and Email Address -->
+            <div id="admin-step-credentials" class="p-6 space-y-4">
+                <div class="space-y-1">
+                    <label class="block text-slate-700 text-xs font-bold" for="admin-input-name">
+                        Name <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i data-lucide="user" class="h-4 w-4"></i>
+                        </div>
+                        <input type="text" id="admin-input-name" placeholder="Enter Authorized Admin Name" class="w-full pl-9.5 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition shadow-inner">
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="block text-slate-700 text-xs font-bold" for="admin-input-id">
+                        Admin ID <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i data-lucide="badge-check" class="h-4 w-4"></i>
+                        </div>
+                        <input type="text" id="admin-input-id" placeholder="e.g. ADMIN001" class="w-full pl-9.5 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-bold font-mono uppercase focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition shadow-inner">
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="block text-slate-700 text-xs font-bold" for="admin-input-email">
+                        Email Address <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i data-lucide="mail" class="h-4 w-4"></i>
+                        </div>
+                        <input type="email" id="admin-input-email" placeholder="e.g. admin@sonatech.ac.in" class="w-full pl-9.5 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition shadow-inner">
+                    </div>
+                </div>
+
+                <button id="btn-admin-send-otp" class="w-full mt-2 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/25 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="send" class="h-4 w-4"></i>
+                    <span>Send OTP</span>
+                </button>
+            </div>
+
+            <!-- STEP 2: Enter 6-Digit Email OTP -->
+            <div id="admin-step-otp" class="hidden p-6 space-y-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-center">
+                    <p class="text-xs text-blue-900 font-semibold" id="admin-otp-destination-hint">OTP sent to your registered email.</p>
+                    <p class="text-[11px] text-blue-600 mt-0.5">Please check your inbox or spam folder for the 6-digit code.</p>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="block text-slate-700 text-xs font-bold text-center" for="admin-input-otp">
+                        Enter 6-Digit Verification OTP <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="admin-input-otp" maxlength="6" placeholder="• • • • • •" class="w-full py-3 text-center tracking-[0.5em] text-xl font-bold font-mono bg-slate-50 border border-slate-300 rounded-xl text-blue-950 focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition shadow-inner">
+                </div>
+
+                <button id="btn-admin-verify-otp" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="log-in" class="h-4 w-4"></i>
+                    <span>Verify OTP & Enter Console</span>
+                </button>
+
+                <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
+                    <button id="btn-admin-back-credentials" class="text-slate-500 hover:text-slate-800 font-semibold flex items-center gap-1 transition">
+                        <i data-lucide="arrow-left" class="h-3.5 w-3.5"></i>
+                        <span>Edit Details</span>
+                    </button>
+                    <button id="btn-admin-resend-otp" class="text-blue-600 hover:text-blue-800 font-bold disabled:text-slate-400 disabled:cursor-not-allowed transition">
+                        Resend OTP
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="bg-slate-50 border-t border-slate-100 px-6 py-3 text-center text-[11px] text-slate-500">
+                Sona College of Technology • Dept of IT • Batch 10 (2026-27)
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== EXISTING START_ADMIN_SERVER MAIN INTERFACE ==================== -->
+    <div id="admin-main-interface" class="min-h-screen flex flex-col hidden">
+
+    <!-- Top Header -->
+    <header class="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-40 px-6 py-3.5 shadow-xs">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Branding -->
+            <div class="flex items-center gap-3.5">
+                <div class="h-11 w-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20 ring-1 ring-blue-500/20">
+                    <i data-lucide="cpu" class="h-6 w-6 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-bold tracking-tight text-slate-900">CloudLab Intelligence</h1>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">Mini Project U23IT705</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Sona College of Technology • Dept of IT • Batch 10 (2026-27)</p>
+                </div>
+            </div>
+
+            <!-- Edge/Cloud Status & Simulation Controls -->
+            <div class="flex items-center flex-wrap gap-2.5">
+                <!-- Sync Badge -->
+                <div id="sync-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold shadow-xs">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                    </span>
+                    <span id="sync-status-text">Edge Online & Synced</span>
+                </div>
+
+                <!-- Single Synchronized Assessment / Exam Mode Toggle -->
+                <button id="btn-toggle-assessment" class="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700 transition flex items-center gap-2 shadow-xs" title="Toggle Exam / Assessment Mode">
+                    <span id="assessment-indicator" class="h-2.5 w-2.5 rounded-full bg-slate-400"></span>
+                    <span id="assessment-text">Assessment Mode: OFF (Learning Mode)</span>
+                </button>
+
+                <button id="btn-toggle-network" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-medium text-slate-700 transition flex items-center gap-1.5 shadow-xs">
+                    <i data-lucide="wifi" id="network-icon" class="h-3.5 w-3.5 text-emerald-600"></i>
+                    <span id="network-toggle-text">Simulate Outage</span>
+                </button>
+
+                <button id="btn-quick-dispatch" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
+                    <i data-lucide="send" class="h-3.5 w-3.5"></i>
+                    <span>Send Report to Admin</span>
+                </button>
+
+                <!-- Authenticated User Profile & Logout -->
+                <div id="user-profile-badge" class="flex items-center gap-2 pl-2 border-l border-slate-200">
+                    <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                        <i data-lucide="user" class="h-3.5 w-3.5 text-blue-600"></i>
+                        <span id="nav-user-name" class="font-bold text-slate-900">Loading...</span>
+                        <span id="nav-user-role" class="px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase bg-blue-100 text-blue-700">User</span>
+                    </div>
+                    <button id="btn-header-logout" class="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold transition flex items-center gap-1 shadow-xs" title="Sign out of CloudLab Intelligence">
+                        <i data-lucide="log-out" class="h-3.5 w-3.5"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="border-b border-slate-200 bg-white px-6 shadow-xs">
+        <div class="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto no-scrollbar py-2">
+            <button class="nav-tab active flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition" data-target="tab-live">
+                <i data-lucide="layout-grid" class="h-4 w-4"></i>
+                <span>Live Lab Monitor</span>
+            </button>
+            <button class="nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition" data-target="tab-students">
+                <i data-lucide="users" class="h-4 w-4"></i>
+                <span>Student Reports & Tabs</span>
+            </button>
+            <button class="nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition" data-target="tab-edge-cloud">
+                <i data-lucide="git-branch" class="h-4 w-4"></i>
+                <span>Edge-Cloud Sync Engine</span>
+            </button>
+            <button class="nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition" data-target="tab-dispatch">
+                <i data-lucide="file-check" class="h-4 w-4"></i>
+                <span>Admin PDF & Dispatch</span>
+            </button>
+            <button class="nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition border border-emerald-300 ml-auto shadow-xs" data-target="tab-portal">
+                <i data-lucide="laptop" class="h-4 w-4"></i>
+                <span>Student Workstation Client</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+
+        <!-- Top KPI Cards Overview -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Active Students</span>
+                    <i data-lucide="user-check" class="h-4 w-4 text-blue-600"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="kpi-active-students" class="text-2xl font-bold text-slate-900 tracking-tight">--</span>
+                    <span class="text-xs text-slate-500">in Lab 1</span>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Lab Utilization</span>
+                    <i data-lucide="pie-chart" class="h-4 w-4 text-emerald-600"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="kpi-utilization" class="text-2xl font-bold text-emerald-600 tracking-tight">--%</span>
+                    <span id="kpi-pc-ratio" class="text-xs text-slate-500">0/24 PCs</span>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Avg Focus Score</span>
+                    <i data-lucide="target" class="h-4 w-4 text-indigo-600"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="kpi-focus-score" class="text-2xl font-bold text-indigo-600 tracking-tight">--%</span>
+                    <span class="text-xs text-emerald-600 font-medium">High</span>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Monitored Hours</span>
+                    <i data-lucide="clock" class="h-4 w-4 text-amber-600"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="kpi-monitored-hours" class="text-2xl font-bold text-slate-900 tracking-tight">--</span>
+                    <span class="text-xs text-slate-500">hrs</span>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Offline Queue</span>
+                    <i data-lucide="layers" class="h-4 w-4 text-yellow-600"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="kpi-queue-count" class="text-2xl font-bold text-yellow-600 tracking-tight">0</span>
+                    <span class="text-xs text-slate-500">events</span>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between">
+                <div class="flex items-center justify-between text-slate-500 text-xs font-semibold">
+                    <span>Synced Batches</span>
+                    <i data-lucide="check-check" class="h-4 w-4 text-cyan-600"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span id="kpi-sync-batches" class="text-2xl font-bold text-cyan-600 tracking-tight">--</span>
+                    <span class="text-xs text-emerald-600 font-medium">Idempotent</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 1: LIVE LAB MONITOR ================= -->
+        <section id="tab-live" class="tab-pane active space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-white border border-slate-200 shadow-xs">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="monitor" class="h-5 w-5 text-blue-600"></i>
+                        <span id="current-lab-heading">Lab 1: IT Computer Laboratory (Dynamic Live Monitor)</span>
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Live workstation cards appear dynamically on login and auto-dismiss 60s after logout.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 text-xs font-semibold">
+                        <span class="flex items-center gap-1.5 text-emerald-700"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span> Active</span>
+                        <span class="flex items-center gap-1.5 text-purple-700"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span> 🤖 AI Learning (Allowed)</span>
+                        <span class="flex items-center gap-1.5 text-red-700"><span class="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse"></span> 🚨 AI / Tab Malpractice</span>
+                        <span class="flex items-center gap-1.5 text-blue-700"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span> Completed (60s)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-Column Layout: Grid on Left/Center, Compact Tab Switch Watchlist on Right -->
+            <div class="flex flex-col lg:flex-row gap-5 items-start">
+                
+                <!-- Main Grid Container -->
+                <div class="flex-1 w-full min-w-0">
+                    <div id="live-pc-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                        <!-- PC cards dynamically rendered here -->
+                        <div class="p-8 text-center text-slate-500 col-span-full bg-white rounded-xl border border-slate-200">Loading Lab Workstations...</div>
+                    </div>
+                </div>
+
+                <!-- Compact Right Sidebar for Assessment Mode Tab Switchers -->
+                <aside id="assessment-watchlist-panel" class="hidden w-full lg:w-72 xl:w-80 flex-shrink-0 sticky top-20 rounded-xl border border-red-300 bg-white p-3.5 space-y-3 shadow-lg shadow-red-100/80">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2.5 w-2.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            </span>
+                            <h3 class="text-xs font-bold text-red-900 tracking-wide uppercase flex items-center gap-1.5">
+                                <span>🚨 Tab Switches</span>
+                            </h3>
+                        </div>
+                        <span id="watchlist-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-500 text-white shadow-xs">0</span>
+                    </div>
+
+                    <div class="text-[11px] text-slate-500 flex items-center justify-between px-1 font-medium">
+                        <span>Student & System</span>
+                        <span>Jump</span>
+                    </div>
+
+                    <!-- Compact Vertical Scrollable List of Students who Switched Tabs -->
+                    <div id="watchlist-cards-container" class="space-y-1.5 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </aside>
+
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: STUDENT REPORTS & TABS ================= -->
+        <section id="tab-students" class="tab-pane hidden space-y-6">
+            <!-- Search & Filters -->
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Student Digital Activity Directory</h2>
+                    <p class="text-xs text-slate-500">Granular audit log of login/logout times, tab activity, application metrics and focus scores.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <i data-lucide="search" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="student-search-input" placeholder="Search by Reg No or Name..." class="pl-9 pr-4 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-500 w-64 shadow-xs">
+                    </div>
+                    <button id="btn-export-all-csv" class="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-2 transition shadow-xs">
+                        <i data-lucide="download" class="h-3.5 w-3.5"></i>
+                        <span>Export CSV</span>
+                    </button>
+                    <button id="btn-export-master-pdf" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs font-semibold text-white flex items-center gap-2 transition shadow-xs">
+                        <i data-lucide="file-text" class="h-3.5 w-3.5"></i>
+                        <span>Master Lab PDF</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Student Table -->
+            <div class="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-700">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                            <tr>
+                                <th class="py-3 px-4">Student & Reg No</th>
+                                <th class="py-3 px-4">Lab / Seat</th>
+                                <th class="py-3 px-4">Login Time</th>
+                                <th class="py-3 px-4">Logout Time</th>
+                                <th class="py-3 px-4">Duration</th>
+                                <th class="py-3 px-4">Active / Idle</th>
+                                <th class="py-3 px-4">Focus Score</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-table-body" class="divide-y divide-slate-100">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: EDGE-CLOUD ARCHITECTURE & SYNC ================= -->
+        <section id="tab-edge-cloud" class="tab-pane hidden space-y-6">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="network" class="h-5 w-5 text-emerald-600"></i>
+                    <span>Offline-First Hybrid Edge-Cloud Architecture</span>
+                </h2>
+                <p class="text-xs text-slate-500">Continuously collects events locally on edge nodes during outages and synchronizes idempotently to the cloud.</p>
+            </div>
+
+            <!-- Interactive Architecture Visualization Diagram -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Client Layer -->
+                <div class="p-5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-3 relative overflow-hidden">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-sm font-bold text-blue-700">
+                            <i data-lucide="laptop" class="h-4 w-4"></i>
+                            <span>Client Layer</span>
+                        </div>
+                        <span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-mono font-semibold border border-blue-200">Workstations</span>
+                    </div>
+                    <p class="text-xs text-slate-600">Lightweight monitoring agent tracks process titles, active browser domains, context switches without keylogging (Privacy-First).</p>
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1 font-mono text-slate-700">
+                        <div>Agent: <span class="text-emerald-600 font-bold">Active (5s Heartbeat)</span></div>
+                        <div>Payload: <span class="text-slate-500">App, Domain, Focus, Idle</span></div>
+                    </div>
+                </div>
+
+                <!-- Edge Layer -->
+                <div class="p-5 rounded-xl bg-white border border-emerald-300 shadow-xs space-y-3 relative overflow-hidden ring-1 ring-emerald-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                            <i data-lucide="server" class="h-4 w-4"></i>
+                            <span>Local Edge Layer (Port 5001)</span>
+                        </div>
+                        <span id="edge-conn-tag" class="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono font-bold">ONLINE</span>
+                    </div>
+                    <p class="text-xs text-slate-600">Local SQLite database buffer & transaction queue. Guarantees 100% data integrity during network failures.</p>
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1 font-mono text-slate-700">
+                        <div>Queue: <span id="edge-queue-val" class="text-yellow-700 font-bold">0 pending</span></div>
+                        <div>Sync Worker: <span class="text-cyan-700 font-bold">Idempotent SHA-256</span></div>
+                    </div>
+                </div>
+
+                <!-- Cloud Layer -->
+                <div class="p-5 rounded-xl bg-white border border-indigo-300 shadow-xs space-y-3 relative overflow-hidden ring-1 ring-indigo-200">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-sm font-bold text-indigo-700">
+                            <i data-lucide="cloud" class="h-4 w-4"></i>
+                            <span>Cloud Layer (Port 5000)</span>
+                        </div>
+                        <span class="text-xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono font-bold border border-indigo-200">Central</span>
+                    </div>
+                    <p class="text-xs text-slate-600">Centralized database, Rule-Based Classifier, Focus analyzer, ML demand forecasting, and report dispatching.</p>
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1 font-mono text-slate-700">
+                        <div>Receiver: <span class="text-emerald-700 font-bold">Idempotent Receiver</span></div>
+                        <div>Analytics: <span class="text-indigo-700 font-bold">Random Forest / Focus</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Control & Log Table -->
+            <div class="p-5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="history" class="h-4 w-4 text-cyan-600"></i>
+                        <span>Idempotent Sync Audit Logs</span>
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button id="btn-manual-sync-now" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-xs">
+                            <i data-lucide="rotate-cw" class="h-3.5 w-3.5"></i>
+                            <span>Sync Now</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-700">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-bold">
+                            <tr>
+                                <th class="py-2.5 px-3">Sync ID</th>
+                                <th class="py-2.5 px-3">Source Node</th>
+                                <th class="py-2.5 px-3">Batch Size</th>
+                                <th class="py-2.5 px-3">Idempotency Hash</th>
+                                <th class="py-2.5 px-3">Timestamp</th>
+                                <th class="py-2.5 px-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sync-audit-tbody" class="divide-y divide-slate-100 font-mono">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: ADMIN PDF & DISPATCH CENTER ================= -->
+        <section id="tab-dispatch" class="tab-pane hidden space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="send" class="h-5 w-5 text-blue-600"></i>
+                        <span>Administrator Report Generation & Dispatching</span>
+                    </h2>
+                    <p class="text-xs text-slate-500">Generate formatted academic PDF reports and dispatch digital summaries to the institutional administrator.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Dispatch Form -->
+                <div class="p-5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-4">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="mail" class="h-4 w-4 text-blue-600"></i>
+                        <span>Dispatch Report via Email</span>
+                    </h3>
+
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Staff / Recipient Email Address:</label>
+                            <input type="email" id="dispatch-email-input" value="" placeholder="Admin / Staff Email (e.g. prabanjanvelavan32@gmail.com)" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-mono">
+                            <p class="text-[11px] text-slate-500 mt-1">Enter any staff or administrator email ID. The generated PDF report will be delivered directly to this inbox.</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">Report Scope:</label>
+                            <select id="dispatch-type-select" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500">
+                                <option value="overall">Consolidated Master Lab Report (All Students)</option>
+                                <option value="student">Individual Student Deep-Dive Report</option>
+                            </select>
+                        </div>
+
+                        <div id="dispatch-student-selector-box" class="hidden">
+                            <label class="block text-slate-600 font-semibold mb-1">Select Student:</label>
+                            <select id="dispatch-student-select" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500">
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-600 font-semibold mb-1">Remarks / Note for Recipient:</label>
+                            <textarea id="dispatch-remarks" rows="2" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 text-xs" placeholder="e.g., Weekly Lab Session Audit completed for Batch 10."></textarea>
+                        </div>
+
+                        <button id="btn-submit-dispatch" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold text-xs flex items-center justify-center gap-2 transition shadow-xs">
+                            <i data-lucide="send" class="h-4 w-4"></i>
+                            <span>Dispatch PDF Report via Email</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dispatched Reports History -->
+                <div class="lg:col-span-2 p-5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-4">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="archive" class="h-4 w-4 text-emerald-600"></i>
+                            <span>Dispatched Reports Audit Trail</span>
+                        </h3>
+                        <button id="btn-delete-all-reports" onclick="deleteAllReports()" class="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold flex items-center gap-1.5 transition shadow-xs">
+                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                            <span>Delete All Reports</span>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-700">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase">
+                                <tr>
+                                    <th class="py-2.5 px-3">Report ID</th>
+                                    <th class="py-2.5 px-3">Report Title</th>
+                                    <th class="py-2.5 px-3">Recipient Email</th>
+                                    <th class="py-2.5 px-3">Dispatched At</th>
+                                    <th class="py-2.5 px-3 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dispatched-reports-tbody" class="divide-y divide-slate-100">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 6: STUDENT WORKSTATION CLIENT PORTAL ================= -->
+        <section id="tab-portal" class="tab-pane hidden space-y-6">
+            <div class="max-w-xl mx-auto p-6 rounded-2xl bg-white border border-slate-200 shadow-xl space-y-6">
+                
+                <div class="text-center space-y-1">
+                    <div class="inline-flex h-12 w-12 rounded-xl bg-blue-50 text-blue-600 items-center justify-center mb-2 border border-blue-200 shadow-xs">
+                        <i data-lucide="terminal" class="h-6 w-6"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-900">Student Workstation Authentication</h2>
+                    <p class="text-xs text-slate-500">Enter your college Register Number to initialize your secure lab session.</p>
+                </div>
+
+                <!-- Login State -->
+                <div id="student-login-form" class="space-y-4 text-xs">
+                    <div>
+                        <label class="block text-slate-700 font-semibold mb-1">Register Number (e.g. 61782323106044):</label>
+                        <input type="text" id="portal-reg-no" value="" placeholder="Enter your Register Number" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono text-sm focus:bg-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-700 font-semibold mb-1">Student Full Name:</label>
+                        <input type="text" id="portal-student-name" value="" placeholder="Enter your Full Name" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-700 font-semibold mb-1">Student Registered Email ID (for OTP):</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="portal-phone-number" placeholder="Enter your Email ID (e.g. name@gmail.com)" class="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono text-sm focus:bg-white focus:outline-none focus:border-blue-500">
+                            <button type="button" id="btn-portal-send-otp" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg text-white font-semibold text-xs transition shadow-xs whitespace-nowrap flex items-center gap-1.5">
+                                <i data-lucide="send" class="h-3.5 w-3.5"></i>
+                                <span>Send OTP</span>
+                            </button>
+                        </div>
+                        <p id="portal-otp-status" class="text-xs text-slate-500 mt-1">A 6-digit verification code will be sent to your Gmail inbox to verify identity.</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-700 font-semibold mb-1">Enter 6-Digit Email OTP Received:</label>
+                        <input type="text" id="portal-otp-code" maxlength="6" placeholder="Enter 6-digit numeric OTP" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono text-center tracking-widest text-base font-bold focus:bg-white focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Laboratory:</label>
+                            <input type="text" readonly value="Lab 1 - AI & Cloud Lab" class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1">Workstation PC:</label>
+                            <select id="portal-pc-select" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500 font-mono">
+                                <option value="PC-LAB1-01">PC-LAB1-01</option>
+                                <option value="PC-LAB1-02">PC-LAB1-02</option>
+                                <option value="PC-LAB1-03">PC-LAB1-03</option>
+                                <option value="PC-LAB1-04">PC-LAB1-04</option>
+                                <option value="PC-LAB1-05">PC-LAB1-05</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="btn-portal-login" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-white font-bold text-sm transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2">
+                        <i data-lucide="shield-check" class="h-4 w-4"></i>
+                        <span>Verify OTP & Start Lab Session</span>
+                    </button>
+                </div>
+
+                <!-- Active Session State -->
+                <div id="student-active-view" class="hidden space-y-5">
+                    <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-1">
+                        <div class="text-xs font-bold text-emerald-800 uppercase tracking-wide">Session Active & Monitored</div>
+                        <div id="portal-timer" class="text-3xl font-mono font-bold text-emerald-900">00:00:00</div>
+                        <p class="text-xs text-slate-600">Authenticated as <b id="portal-active-student" class="text-slate-900">Jayakumar M (61782323106044)</b> on <b id="portal-active-pc" class="text-slate-900">PC-LAB1-01</b></p>
+                    </div>
+
+                    <!-- Simulator Controls to test tab switching & app changes -->
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div class="text-xs font-bold text-slate-700">Simulate Student Activity Change:</div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <button class="btn-activity-sim px-3 py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-left shadow-xs font-medium" data-app="Code" data-title="cloud_engine.py - VS Code" data-dom="">
+                                💻 Code in VS Code
+                            </button>
+                            <button class="btn-activity-sim px-3 py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-left shadow-xs font-medium" data-app="MySQLWorkbench" data-title="MySQL Workbench - Queries" data-dom="">
+                                🗄️ MySQL Workbench
+                            </button>
+                            <button class="btn-activity-sim px-3 py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-left shadow-xs font-medium" data-app="chrome" data-title="Stack Overflow - SQLite WAL mode" data-dom="stackoverflow.com">
+                                🔍 StackOverflow Tab
+                            </button>
+                            <button class="btn-activity-sim px-3 py-2 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-left shadow-xs font-medium" data-app="WINWORD" data-title="Lab_Documentation.docx - Word" data-dom="">
+                                📝 Word Document
+                            </button>
+                            <!-- AI Chatbot Malpractice Simulator Buttons -->
+                            <button class="btn-activity-sim px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-300 text-left text-red-700 col-span-1 shadow-xs font-semibold" data-app="chrome" data-title="ChatGPT - Write Python code for Lab exam" data-dom="chatgpt.com">
+                                🚨 Open ChatGPT (AI)
+                            </button>
+                            <button class="btn-activity-sim px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 border border-red-300 text-left text-red-700 col-span-1 shadow-xs font-semibold" data-app="chrome" data-title="DeepSeek Chat - Solve SQL query" data-dom="deepseek.com">
+                                🚨 Open DeepSeek (AI)
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="btn-portal-logout" class="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg text-white font-bold text-sm transition shadow-md shadow-red-600/20 flex items-center justify-center gap-2">
+                        <i data-lucide="log-out" class="h-4 w-4"></i>
+                        <span>End Session & Logout</span>
+                    </button>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Student Deep Dive Detail Modal -->
+    <div id="student-detail-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 text-slate-900">
+            
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between border-b border-slate-200 pb-4">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h3 id="modal-student-name" class="text-xl font-bold text-slate-900">Student Name</h3>
+                        <span id="modal-student-reg" class="px-2.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 font-mono text-xs font-semibold">61782323106044</span>
+                    </div>
+                    <p id="modal-student-meta" class="text-xs text-slate-500 mt-0.5">IV Year IT-A • Workstation: PC-LAB1-01</p>
+                </div>
+                <button id="btn-close-modal" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body Stats -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-slate-500 font-medium">Total Duration</div>
+                    <div id="modal-stat-duration" class="text-base font-bold text-slate-900 mt-1">--</div>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-slate-500 font-medium">Active vs Idle</div>
+                    <div id="modal-stat-active-idle" class="text-base font-bold text-emerald-700 mt-1">-- / --</div>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-slate-500 font-medium">Focus Score</div>
+                    <div id="modal-stat-focus" class="text-base font-bold text-indigo-700 mt-1">--%</div>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div class="text-slate-500 font-medium">Context Switches</div>
+                    <div id="modal-stat-switches" class="text-base font-bold text-cyan-700 mt-1">--</div>
+                </div>
+            </div>
+
+            <!-- Visited Browser Tabs & Domains Audit Trail -->
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <i data-lucide="globe" class="h-4 w-4 text-blue-600"></i>
+                        <span>Browser Tabs & Visited Web Resources</span>
+                    </h4>
+                    <span id="modal-tabs-count-badge" class="px-2.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-mono font-semibold">0 Webpages</span>
+                </div>
+                <div id="modal-domain-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto text-xs pr-1">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Real-Time Activity Log (What Student Did in Last Few Minutes) -->
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="activity" class="h-4 w-4 text-emerald-600"></i>
+                        <span>Recent Minute-by-Minute Activity Timeline (What Student Did)</span>
+                    </h4>
+                    <span id="modal-events-count-badge" class="px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold">Live Timeline</span>
+                </div>
+                <div id="modal-activity-timeline" class="space-y-2 max-h-64 overflow-y-auto text-xs pr-1 divide-y divide-slate-200">
+                    <!-- Dynamic timeline items populated by JS -->
+                </div>
+            </div>
+
+            <!-- Modal Action Footer -->
+            <div class="flex items-center justify-between border-t border-slate-200 pt-4">
+                <span class="text-xs text-slate-500">Privacy-First metadata logging verified.</span>
+                <div class="flex items-center gap-3">
+                    <button id="modal-btn-download-pdf" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-2 transition shadow-xs">
+                        <i data-lucide="file-down" class="h-4 w-4"></i>
+                        <span>Download PDF Report</span>
+                    </button>
+                    <button id="modal-btn-email-admin" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-xs font-semibold text-white flex items-center gap-2 transition shadow-xs">
+                        <i data-lucide="send" class="h-4 w-4"></i>
+                        <span>Email Report to Admin</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Real-time Assessment Malpractice Alert Popup Modal -->
+    <div id="malpractice-alert-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white border-2 border-red-500 rounded-2xl w-full max-w-lg shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200 text-slate-900">
+            
+            <!-- Alert Header -->
+            <div class="flex items-center gap-3.5 pb-3 border-b border-red-200">
+                <div class="h-12 w-12 rounded-xl bg-red-100 border border-red-300 flex items-center justify-center text-red-600 animate-bounce">
+                    <i data-lucide="shield-alert" class="h-7 w-7"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-red-600 text-white tracking-wider animate-pulse">ASSESSMENT MALPRACTICE ALERT</span>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-900 mt-1">Integrity Violation Triggered</h3>
+                </div>
+            </div>
+
+            <!-- Student & Workstation Card -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 font-medium">Student Name:</span>
+                    <span id="alert-student-name" class="font-bold text-slate-900 text-sm">--</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 font-medium">Register Number:</span>
+                    <span id="alert-student-reg" class="font-mono font-bold text-blue-700">--</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-500 font-medium">Workstation ID:</span>
+                    <span id="alert-pc-id" class="font-mono font-bold text-emerald-700">--</span>
+                </div>
+            </div>
+
+            <!-- Violation Detail Box -->
+            <div class="p-3.5 rounded-xl bg-red-50 border border-red-200 space-y-1.5">
+                <div class="text-xs font-bold text-red-700 uppercase tracking-wide flex items-center gap-1.5">
+                    <i data-lucide="alert-triangle" class="h-4 w-4"></i>
+                    <span>Action Performed:</span>
+                </div>
+                <p id="alert-violation-action" class="text-sm font-bold text-red-900">
+                    --
+                </p>
+                <div class="text-[11px] text-slate-600 flex items-center justify-between pt-1 border-t border-red-200">
+                    <span>Active Application: <b id="alert-app-name" class="text-slate-900">--</b></span>
+                    <span>Time: <b id="alert-timestamp" class="text-slate-900 font-mono">--</b></span>
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex items-center gap-3 pt-1">
+                <button id="btn-inspect-alert-student" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-bold text-xs transition shadow-md shadow-blue-600/20 flex items-center justify-center gap-2">
+                    <i data-lucide="eye" class="h-4 w-4"></i>
+                    <span>Inspect Full Activity</span>
+                </button>
+                <button id="btn-close-malpractice-alert" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-slate-700 font-semibold text-xs transition">
+                    Dismiss Alert
+                </button>
+            </div>
+        </div>
+    </div>
+    </div><!-- End of #admin-main-interface -->
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs shadow-xl flex items-center gap-3 animate-fade-in font-medium">
+        <i data-lucide="check-circle" id="toast-icon" class="h-5 w-5 text-emerald-600"></i>
+        <span id="toast-message">Operation successful!</span>
+    </div>
+
+    <script src="/app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

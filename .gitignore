@@ -1,1 +1,20 @@
-venv/ 
+# Environment variables (NEVER commit secrets!)
+.env
+.env.local
+.env.*.local
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Database files
+*.db-shm
+*.db-wal
+
+# Distribution & Build
+dist/
+build/
+*.egg-info/

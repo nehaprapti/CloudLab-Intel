@@ -11,21 +11,21 @@ for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address"') do (
     echo [LAN IP] %%a
 )
 echo.
-echo [*] Starting Cloud & Edge Servers on Port 5000 & 5001...
+echo [*] Starting Cloud and Edge Servers on Port 5000 and 5001...
 echo [*] Open Browser at: http://localhost:5000
 echo.
-if exist "CloudLabServer.exe" (
-    CloudLabServer.exe
+where python >nul 2>nul
+if %errorlevel% equ 0 (
+    python run_system.py
 ) else (
-    where python >nul 2>nul
+    where py >nul 2>nul
     if %errorlevel% equ 0 (
-        python run_system.py
+        py run_system.py
     ) else (
-        where py >nul 2>nul
-        if %errorlevel% equ 0 (
-            py run_system.py
+        if exist "CloudLabServer.exe" (
+            CloudLabServer.exe
         ) else (
-            echo [ERROR] Neither CloudLabServer.exe nor Python was found.
+            echo [ERROR] Neither Python nor CloudLabServer.exe was found.
         )
     )
 )

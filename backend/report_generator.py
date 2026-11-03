@@ -434,10 +434,10 @@ def export_sessions_to_csv(sessions_list):
     return output.getvalue()
 
 
-def dispatch_report_to_administrator(recipient_email, report_type="overall", student_reg_no=None, student_data=None, sessions_list=None):
+def dispatch_report_to_administrator(recipient_email, report_type="overall", student_reg_no=None, student_data=None, sessions_list=None, remarks=""):
     """
-    Dispatches the generated report to the Administrator.
-    Provides complete audit logging and instant simulated delivery.
+    Dispatches the generated report to the Administrator or Staff member.
+    Generates academic PDF report and delivers it via SMTP email attachment to recipient_email.
     """
     now_iso = datetime.now().isoformat()
     if report_type == "student":
@@ -472,6 +472,28 @@ def dispatch_report_to_administrator(recipient_email, report_type="overall", stu
             "active_students": sum(1 for s in (sessions_list or []) if s.get("status") == "ACTIVE")
         }
 
+    # Dispatch real email with PDF attachment to recipient_email (supports any staff email)
+    from backend.email_provider import email_provider
+    email_delivered = False
+    delivery_note = ""
+
+    if email_provider.is_configured() and recipient_email and "@" in recipient_email:
+        try:
+            em_res = email_provider.send_report_email(
+                to_email=recipient_email,
+                title=title,
+                pdf_path=pdf_path,
+                summary=summary,
+                remarks=remarks or ""
+            )
+            email_delivered = em_res.get("success", False)
+            if email_delivered:
+                delivery_note = f" Delivered to {recipient_email} inbox."
+            else:
+                delivery_note = f" (Mail note: {em_res.get('error', 'Skipped')})"
+        except Exception as ex:
+            delivery_note = f" (Mail delivery exception: {str(ex)})"
+
     # Record in database log
     from backend.models import get_db_connection
     conn = get_db_connection("cloud_storage.db")
@@ -501,7 +523,8 @@ def dispatch_report_to_administrator(recipient_email, report_type="overall", stu
         "recipient_email": recipient_email,
         "title": title,
         "status": "SENT",
+        "email_delivered": email_delivered,
         "pdf_filename": filename,
         "generated_at": now_iso,
-        "message": f"Report successfully dispatched to {recipient_email}."
+        "message": f"Report successfully dispatched to {recipient_email}.{delivery_note}"
     }

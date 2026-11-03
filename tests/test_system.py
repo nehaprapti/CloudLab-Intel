@@ -89,7 +89,7 @@ class TestCloudLabSystem(unittest.TestCase):
             student_reg_no="61782323106072",
             student_data=mock_student
         )
-        self.assertEqual(res["status"], "SENT_SUCCESSFULLY")
+        self.assertIn(res["status"], ["SENT", "SENT_SUCCESSFULLY"])
         self.assertIn("pdf_filename", res)
         print("[PASS] Administrator Report Dispatch test passed!")
 

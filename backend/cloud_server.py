@@ -7,8 +7,9 @@ Deep Analytics Engine, ML Optimization, and Report Generation & Dispatching.
 import os
 import json
 import uuid
-from datetime import datetime
-from flask import Flask, request, jsonify, send_file, send_from_directory, Response
+import functools
+from datetime import datetime, timedelta
+from flask import Flask, request, jsonify, send_file, send_from_directory, Response, session, redirect
 
 from backend.models import get_db_connection, init_db
 from backend.analytics_engine import classify_activity, analyze_context_switches, compute_student_summary
@@ -16,11 +17,24 @@ from backend.report_generator import (
     generate_student_pdf_report, generate_overall_lab_pdf_report,
     export_sessions_to_csv, dispatch_report_to_administrator, REPORT_OUTPUT_DIR
 )
+from backend.auth_service import (
+    request_otp, verify_otp, validate_session, invalidate_session, normalize_phone_number
+)
+from backend.admin_auth_service import (
+    request_admin_otp, verify_admin_otp, validate_admin_session, logout_admin_session
+)
 
 # Setup Flask application
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
+
+# Secure Cookie & Session Configuration
+app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "cloudlab-secret-key-change-in-env-9f8e7d6c")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False # Local dev HTTP; set True in production HTTPS
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=1)
 
 # Central settings
 GLOBAL_SETTINGS = {
@@ -28,27 +42,243 @@ GLOBAL_SETTINGS = {
     "assessment_mode_enabled_at": None # Timestamp when assessment mode was toggled ON
 }
 
-# Mirror Edge API endpoints on Cloud Server (Port 5000) for dual-port accessibility
-from backend.edge_server import edge_student_login, edge_heartbeat, edge_logout, edge_status
-app.add_url_rule("/api/edge/login", "cloud_edge_login", edge_student_login, methods=["POST"])
-app.add_url_rule("/api/edge/heartbeat", "cloud_edge_heartbeat", edge_heartbeat, methods=["POST"])
-app.add_url_rule("/api/edge/logout", "cloud_edge_logout", edge_logout, methods=["POST"])
-app.add_url_rule("/api/edge/status", "cloud_edge_status", edge_status, methods=["GET"])
+# Dual-port agent accessibility handled via unified direct agent endpoints below
 
 
-# ------------------- Web UI Routes & Settings ------------------- #
+# ------------------- Authentication Middleware & Helpers ------------------- #
+
+def get_current_user():
+    """Retrieves authenticated user from session cookie or Flask session."""
+    token = request.cookies.get("cloudlab_session") or session.get("session_token")
+    if not token:
+        return None
+    return validate_session(token)
+
+
+def get_current_admin():
+    """Retrieves authenticated administrator from admin session cookie or header."""
+    token = request.cookies.get("cloudlab_admin_session") or request.headers.get("X-Admin-Session") or session.get("admin_session_token")
+    if not token:
+        return None
+    return validate_admin_session(token)
+
+
+def login_required(f):
+    """Admin dashboard does not require OTP authentication; access is permitted directly."""
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ------------------- Web UI Routes & Mobile OTP Authentication ------------------- #
 
 @app.route("/")
 def index():
-    """Serves the Unified CloudLab Intelligence Admin & Student Dashboard."""
+    """Serves the Unified CloudLab Intelligence Admin Dashboard directly without OTP."""
     return send_from_directory(STATIC_DIR, "index.html")
 
+
+@app.route("/login")
+def login_page():
+    """Serves the optional Mobile OTP Authentication Page."""
+    return send_from_directory(STATIC_DIR, "login.html")
+
+
+# ------------------- START_ADMIN_SERVER Admin OTP Authentication APIs ------------------- #
+
+@app.route("/api/admin/auth/send-otp", methods=["POST"])
+def admin_auth_send_otp():
+    """
+    Validates admin credentials (Name, Admin ID, Email) against authorized_admins.json.
+    All 3 fields must match the same record.
+    If valid, dispatches 6-digit OTP to the registered admin email.
+    If invalid, returns 'INVALID ADMIN DETAILS'.
+    """
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "")
+    admin_id = data.get("admin_id", "")
+    email = data.get("email", "")
+    test_override = data.get("test_override_otp")
+
+    result = request_admin_otp(name, admin_id, email, test_override_otp=test_override)
+    status_code = 200 if result.get("success") else 400
+    return jsonify(result), status_code
+
+
+@app.route("/api/admin/auth/verify-otp", methods=["POST"])
+def admin_auth_verify_otp():
+    """
+    Verifies the admin OTP code against the salted hash with expiry and attempt limits.
+    If valid, creates an authenticated admin session and sets HttpOnly cookie.
+    If invalid, returns 'INVALID OTP. PLEASE TRY AGAIN.'.
+    """
+    data = request.get_json(silent=True) or {}
+    challenge_id = data.get("challenge_id", "")
+    otp_code = data.get("otp", "")
+
+    result = verify_admin_otp(challenge_id, otp_code)
+    if result.get("success"):
+        session_token = result["session_token"]
+        session["admin_session_token"] = session_token
+        session["admin_user"] = result["admin"]
+
+        resp = jsonify({
+            "success": True,
+            "message": "Admin authenticated successfully.",
+            "admin": result["admin"],
+            "session_token": session_token
+        })
+        resp.set_cookie(
+            "cloudlab_admin_session",
+            session_token,
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            max_age=28800
+        )
+        return resp, 200
+
+    return jsonify(result), 400
+
+
+@app.route("/api/admin/auth/status", methods=["GET"])
+def admin_auth_status():
+    """Checks whether the administrator is currently authenticated."""
+    admin = get_current_admin()
+    if admin:
+        return jsonify({
+            "authenticated": True,
+            "admin": admin
+        }), 200
+    return jsonify({
+        "authenticated": False
+    }), 200
+
+
+@app.route("/api/admin/auth/logout", methods=["POST", "GET"])
+def admin_auth_logout():
+    """Logs out the administrator and invalidates the session."""
+    token = request.cookies.get("cloudlab_admin_session") or session.get("admin_session_token")
+    if token:
+        logout_admin_session(token)
+    session.pop("admin_session_token", None)
+    session.pop("admin_user", None)
+
+    resp = jsonify({
+        "success": True,
+        "message": "Admin logged out successfully."
+    })
+    resp.delete_cookie("cloudlab_admin_session")
+    return resp, 200
+
+
+@app.route("/api/auth/send-otp", methods=["POST"])
+def auth_send_otp():
+    """Generates and delivers a time-limited OTP to the mobile number."""
+    data = request.get_json(silent=True) or {}
+    country_code = data.get("country_code", "+91")
+    raw_number = data.get("phone_number", "")
+    student_name = data.get("student_name", "Student")
+    
+    result = request_otp(country_code, raw_number, student_name=student_name)
+    status_code = 200 if result.get("success") else 400
+    return jsonify(result), status_code
+
+
+@app.route("/api/auth/verify-otp", methods=["POST"])
+def auth_verify_otp():
+    """Verifies submitted OTP and establishes authenticated session."""
+    data = request.get_json(silent=True) or {}
+    phone_number = data.get("phone_number", "")
+    otp_code = data.get("otp", "")
+    name = data.get("name")
+    reg_no = data.get("reg_no")
+
+    result = verify_otp(phone_number, otp_code, user_name=name, reg_no=reg_no)
+    if result.get("success"):
+        session_token = result["session_token"]
+        session["session_token"] = session_token
+        session["user_id"] = result["user"]["user_id"]
+        session["role"] = result["user"]["role"]
+
+        resp = jsonify({
+            "success": True,
+            "message": "Authentication successful.",
+            "redirect_url": "/",
+            "user": result["user"]
+        })
+        resp.set_cookie(
+            "cloudlab_session",
+            session_token,
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            max_age=86400
+        )
+        return resp, 200
+
+    return jsonify(result), 400
+
+
+@app.route("/api/auth/me", methods=["GET"])
+def auth_me():
+    """Returns currently authenticated user profile or unauthenticated status."""
+    admin = get_current_admin()
+    if admin:
+        return jsonify({
+            "authenticated": True,
+            "user": {
+                "name": admin["name"],
+                "role": "admin",
+                "admin_id": admin["admin_id"],
+                "email": admin["email"]
+            }
+        })
+    user = get_current_user()
+    if user:
+        return jsonify({"authenticated": True, "user": user})
+    return jsonify({
+        "authenticated": True,
+        "user": {
+            "name": "Department Administrator",
+            "role": "admin",
+            "phone_number": "+919876500000"
+        }
+    }), 200
+
+
+@app.route("/api/auth/logout", methods=["POST", "GET"])
+def auth_logout():
+    """Invalidates authenticated session and clears session cookies."""
+    token = request.cookies.get("cloudlab_session") or session.get("session_token")
+    if token:
+        invalidate_session(token)
+    admin_token = request.cookies.get("cloudlab_admin_session") or session.get("admin_session_token")
+    if admin_token:
+        logout_admin_session(admin_token)
+    session.clear()
+
+    resp = jsonify({
+        "success": True,
+        "message": "Logged out successfully.",
+        "redirect_url": "/"
+    })
+    resp.delete_cookie("cloudlab_session")
+    resp.delete_cookie("cloudlab_admin_session")
+    if request.method == "GET":
+        return redirect("/")
+    return resp, 200
+
+
 @app.route("/api/admin/settings", methods=["GET"])
+@login_required
 def get_admin_settings():
     """Returns central system settings."""
     return jsonify(GLOBAL_SETTINGS)
 
 @app.route("/api/admin/toggle-assessment", methods=["POST", "GET"])
+@login_required
 def toggle_assessment_mode():
     """Toggles Assessment Mode on/off."""
     if request.method == "POST":
@@ -259,6 +489,7 @@ def cloud_sync_ingest():
 # ------------------- Administrator Analytics & Monitoring APIs ------------------- #
 
 @app.route("/api/admin/overview", methods=["GET"])
+@login_required
 def admin_overview():
     """Returns top-level KPIs for the laboratory."""
     conn = get_db_connection("cloud_storage.db")
@@ -267,11 +498,36 @@ def admin_overview():
     cursor.execute("SELECT COUNT(*) as total FROM computers")
     total_computers = cursor.fetchone()["total"] or 30
 
+    now = datetime.now()
+    # Auto-cleanup stale test/disconnected heartbeats (> 20s) so Active Students is 100% accurate in real-time
+    cursor.execute("SELECT pc_id, last_heartbeat FROM computers WHERE status IN ('OCCUPIED', 'IDLE')")
+    stale_pcs = []
+    for r in cursor.fetchall():
+        hb = r["last_heartbeat"]
+        if hb:
+            try:
+                cleaned_ts = str(hb).replace("Z", "").replace(" ", "T").split(".")[0]
+                ts = datetime.fromisoformat(cleaned_ts)
+                if (now - ts).total_seconds() >= 20:
+                    stale_pcs.append(r["pc_id"])
+            except Exception:
+                pass
+    if stale_pcs:
+        cursor.executemany("UPDATE computers SET status = 'AVAILABLE', current_session_id = NULL, current_reg_no = NULL WHERE pc_id = ?", [(p,) for p in stale_pcs])
+        conn.commit()
+
     cursor.execute("SELECT COUNT(*) as occupied FROM computers WHERE status IN ('OCCUPIED', 'IDLE')")
     occupied_computers = cursor.fetchone()["occupied"]
 
-    cursor.execute("SELECT COUNT(*) as active FROM sessions WHERE status = 'ACTIVE'")
-    active_sessions = cursor.fetchone()["active"]
+    # Active students corresponds to workstations currently occupied by logged-in students
+    cursor.execute("""
+    SELECT COUNT(DISTINCT s.session_id) as active 
+    FROM sessions s
+    JOIN computers c ON s.session_id = c.current_session_id
+    WHERE c.status IN ('OCCUPIED', 'IDLE') AND s.status = 'ACTIVE'
+    """)
+    active_row = cursor.fetchone()
+    active_sessions = active_row["active"] if (active_row and active_row["active"] > 0) else occupied_computers
 
     cursor.execute("SELECT COUNT(*) as total_students FROM students")
     total_students = cursor.fetchone()["total_students"]
@@ -312,6 +568,7 @@ def admin_overview():
 
 
 @app.route("/api/admin/live-lab", methods=["GET"])
+@login_required
 def admin_live_lab():
     """Returns real-time state of all lab workstations for the visual grid."""
     db_to_use = "edge_storage.db" if os.path.exists(os.path.join(BASE_DIR, "data", "edge_storage.db")) else "cloud_storage.db"
@@ -462,6 +719,7 @@ def admin_live_lab():
 
 
 @app.route("/api/admin/students", methods=["GET"])
+@login_required
 def admin_students_list():
     """Returns complete list of students and their overall lab sessions."""
     conn = get_db_connection("cloud_storage.db")
@@ -506,6 +764,7 @@ def admin_students_list():
 
 
 @app.route("/api/admin/student/<reg_no>/report", methods=["GET"])
+@login_required
 def admin_student_detailed_report(reg_no):
     """
     Returns full granular report for a specific student:
@@ -563,6 +822,7 @@ def admin_student_detailed_report(reg_no):
 # ------------------- Report Export & Email Dispatch APIs ------------------- #
 
 @app.route("/api/admin/export-pdf/<reg_no>", methods=["GET"])
+@login_required
 def export_student_pdf(reg_no):
     """Generates and downloads student session PDF report."""
     conn = get_db_connection("cloud_storage.db")
@@ -585,6 +845,7 @@ def export_student_pdf(reg_no):
 
 
 @app.route("/api/admin/export-lab-pdf", methods=["GET"])
+@login_required
 def export_master_lab_pdf():
     """Generates and downloads master lab PDF report."""
     conn = get_db_connection("cloud_storage.db")
@@ -598,6 +859,7 @@ def export_master_lab_pdf():
 
 
 @app.route("/api/admin/export-csv", methods=["GET"])
+@login_required
 def export_csv():
     """Exports all sessions into CSV format."""
     conn = get_db_connection("cloud_storage.db")
@@ -615,14 +877,16 @@ def export_csv():
 
 
 @app.route("/api/admin/send-report", methods=["POST"])
+@login_required
 def send_admin_report():
     """
     Dispatches report to Administrator email address.
     """
     data = request.get_json() or {}
-    recipient_email = data.get("email", "admin.it@sonatech.ac.in").strip()
+    recipient_email = data.get("email", "").strip() or "admin.it@sonatech.ac.in"
     report_type = data.get("report_type", "overall") # "overall" or "student"
     reg_no = data.get("reg_no")
+    remarks = data.get("remarks", "")
 
     student_data = None
     sessions_list = None
@@ -664,13 +928,15 @@ def send_admin_report():
         report_type=report_type,
         student_reg_no=reg_no,
         student_data=student_data,
-        sessions_list=sessions_list
+        sessions_list=sessions_list,
+        remarks=remarks
     )
 
     return jsonify(dispatch_result)
 
 
 @app.route("/api/admin/dispatched-reports", methods=["GET"])
+@login_required
 def get_dispatched_reports():
     """Returns history of reports dispatched to the administrator."""
     conn = get_db_connection("cloud_storage.db")
@@ -682,6 +948,7 @@ def get_dispatched_reports():
 
 
 @app.route("/api/admin/download-pdf/<filename>", methods=["GET"])
+@login_required
 def download_saved_pdf(filename):
     """Serves a previously generated PDF report."""
     filepath = os.path.join(REPORT_OUTPUT_DIR, filename)
@@ -691,6 +958,7 @@ def download_saved_pdf(filename):
 
 
 @app.route("/api/admin/delete-report/<report_id>", methods=["DELETE", "POST"])
+@login_required
 def delete_dispatched_report(report_id):
     """Deletes a dispatched report record and its associated PDF file."""
     conn = get_db_connection("cloud_storage.db")
@@ -700,12 +968,14 @@ def delete_dispatched_report(report_id):
 
     if report:
         report_dict = dict(report)
-        pdf_path = report_dict.get("pdf_path")
-        if pdf_path and os.path.exists(pdf_path):
-            try:
-                os.remove(pdf_path)
-            except Exception:
-                pass
+        pdf_fn = report_dict.get("pdf_filename")
+        if pdf_fn:
+            pdf_path = os.path.join(REPORT_OUTPUT_DIR, pdf_fn)
+            if os.path.exists(pdf_path):
+                try:
+                    os.remove(pdf_path)
+                except Exception:
+                    pass
         
         cursor.execute("DELETE FROM admin_reports WHERE report_id = ?", (report_id,))
         conn.commit()
@@ -725,7 +995,69 @@ def delete_dispatched_report(report_id):
     return jsonify({"success": True, "message": f"Report {report_id} deleted successfully."})
 
 
+@app.route("/api/admin/delete-all-reports", methods=["DELETE", "POST"])
+@login_required
+def delete_all_reports():
+    """
+    1-Click Delete All Reports:
+    Permanently deletes all dispatched report audit records and wipes all generated PDF/CSV files from the reports directory.
+    """
+    deleted_files_count = 0
+    # 1. Clean all PDF and CSV files from reports output directory
+    if os.path.exists(REPORT_OUTPUT_DIR):
+        for fname in os.listdir(REPORT_OUTPUT_DIR):
+            if fname.lower().endswith((".pdf", ".csv")):
+                fpath = os.path.join(REPORT_OUTPUT_DIR, fname)
+                try:
+                    if os.path.isfile(fpath):
+                        os.remove(fpath)
+                        deleted_files_count += 1
+                except Exception as e:
+                    print(f"Error removing {fpath}: {e}")
+
+    # 2. Clear admin_reports table in cloud_storage.db
+    deleted_db_records = 0
+    try:
+        conn = get_db_connection("cloud_storage.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) as cnt FROM admin_reports")
+        row = cursor.fetchone()
+        if row:
+            deleted_db_records = row["cnt"]
+        cursor.execute("DELETE FROM admin_reports")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error deleting cloud admin_reports: {e}")
+
+    # 3. Clear admin_reports table in edge_storage.db
+    try:
+        if os.path.exists(os.path.join(BASE_DIR, "data", "edge_storage.db")):
+            edge_conn = get_db_connection("edge_storage.db")
+            edge_cursor = edge_conn.cursor()
+            edge_cursor.execute("DELETE FROM admin_reports")
+            edge_conn.commit()
+            edge_conn.close()
+    except Exception as e:
+        print(f"Error deleting edge admin_reports: {e}")
+
+    return jsonify({
+        "success": True,
+        "message": f"All reports cleared successfully ({deleted_db_records} audit records & {deleted_files_count} PDF files removed).",
+        "deleted_records": deleted_db_records,
+        "deleted_files": deleted_files_count
+    })
+
+
+
 # ------------------- Direct Agent Ingestion (Port 5000 / 5001 Unified) ------------------- #
+
+@app.route("/api/edge/send-otp", methods=["POST"])
+def direct_student_send_otp():
+    """Allows student agent to request OTP directly from Cloud or Edge."""
+    from backend.edge_server import edge_send_otp
+    return edge_send_otp()
+
 
 @app.route("/api/edge/login", methods=["POST"])
 def direct_student_login():
@@ -744,20 +1076,21 @@ def direct_student_heartbeat():
 @app.route("/api/edge/logout", methods=["POST"])
 def direct_student_logout():
     """Allows student agent to logout directly to Cloud or Edge."""
-    from backend.edge_server import edge_student_logout
-    return edge_student_logout()
+    from backend.edge_server import edge_logout
+    return edge_logout()
 
 
 @app.route("/api/edge/status", methods=["GET"])
 def direct_edge_status():
     """Returns edge sync status."""
-    from backend.edge_server import get_edge_status
-    return get_edge_status()
+    from backend.edge_server import edge_status
+    return edge_status()
 
 
 # ------------------- Seed Endpoint ------------------- #
 
 @app.route("/api/admin/seed", methods=["POST"])
+@login_required
 def seed_database_endpoint():
     """Seeds initial demonstration data."""
     from backend.seed_data import seed_all

@@ -153,6 +153,70 @@ def init_db(db_name="cloud_storage.db", is_edge=False):
     )
     """)
 
+    # ------------------- Authentication & Role-Based Tables ------------------- #
+    # User Accounts (Students, Faculty, Administrators)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        phone_number TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        role TEXT DEFAULT 'student', -- 'admin', 'faculty', 'student'
+        reg_no TEXT,
+        department TEXT DEFAULT 'Information Technology',
+        created_at TEXT NOT NULL,
+        last_login TEXT,
+        is_active INTEGER DEFAULT 1,
+        FOREIGN KEY (reg_no) REFERENCES students(reg_no)
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_reg_no ON users(reg_no)")
+
+    # Mobile OTP Challenges (Time-limited, salted hash, rate-limited)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS otp_challenges (
+        challenge_id TEXT PRIMARY KEY,
+        phone_number TEXT NOT NULL,
+        otp_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        attempts INTEGER DEFAULT 0,
+        is_verified INTEGER DEFAULT 0,
+        is_invalidated INTEGER DEFAULT 0
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_challenges(phone_number)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_otp_created ON otp_challenges(created_at)")
+
+    # Secure Authenticated Web Sessions
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+        session_token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        phone_number TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        ip_address TEXT,
+        user_agent TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_auth_token ON auth_sessions(session_token)")
+
+    # Backward-compatible addition of phone_number to students and sessions tables
+    try:
+        cursor.execute("ALTER TABLE students ADD COLUMN phone_number TEXT")
+    except sqlite3.OperationalError:
+        pass # Column already exists
+
+    try:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN phone_number TEXT")
+    except sqlite3.OperationalError:
+        pass # Column already exists
+
     conn.commit()
     conn.close()
 

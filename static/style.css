@@ -1,22 +1,22 @@
-/* Custom Styles for CloudLab Intelligence */
+/* Custom Styles for CloudLab Intelligence - Professional Light Theme */
 
-/* Scrollbar styles */
+/* Light Theme Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #090d16;
+    background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: #cbd5e1;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #94a3b8;
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -28,36 +28,38 @@
     scrollbar-width: none;
 }
 
-/* Nav Tab Active States */
+/* Nav Tab Active States - Clean Light Blue */
 .nav-tab.active {
-    background: rgba(37, 99, 235, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    font-weight: 600;
 }
 
-/* Workstation PC Card Styles */
+/* Workstation PC Card Styles (Light Theme) */
 .pc-card {
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #ffffff;
 }
 
 .pc-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
 }
 
 .pc-occupied {
-    border-color: rgba(16, 185, 129, 0.35);
-    background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, rgba(15, 23, 42, 0.7) 100%);
+    border-color: #86efac;
+    background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
 }
 
 .pc-idle {
-    border-color: rgba(245, 158, 11, 0.35);
-    background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, rgba(15, 23, 42, 0.7) 100%);
+    border-color: #fde68a;
+    background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
 }
 
 .pc-available {
-    border-color: rgba(51, 65, 85, 0.6);
-    background: rgba(15, 23, 42, 0.4);
+    border-color: #e2e8f0;
+    background: #f8fafc;
 }
 
 /* Pulse badge */

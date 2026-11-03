@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['c:/Users/ANANTH KARTHIK/Desktop/CloudLab Intel/client_agent_gui.py'],
+    ['client_agent_gui.py'],
     pathex=[],
     binaries=[],
     datas=[],

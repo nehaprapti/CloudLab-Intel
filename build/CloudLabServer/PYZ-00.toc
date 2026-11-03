@@ -1,4 +1,4 @@
-('C:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab '
+('C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
  'Intel\\build\\CloudLabServer\\PYZ-00.pyz',
  [('PIL',
    'C:\\Users\\ANANTH '
@@ -629,29 +629,52 @@
    'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\asyncio\\windows_utils.py',
    'PYMODULE'),
   ('backend',
-   'c:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab Intel\\backend\\__init__.py',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\__init__.py',
+   'PYMODULE'),
+  ('backend.admin_auth_service',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\admin_auth_service.py',
+   'PYMODULE'),
+  ('backend.admin_vault',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\admin_vault.py',
    'PYMODULE'),
   ('backend.analytics_engine',
-   'c:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab '
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
    'Intel\\backend\\analytics_engine.py',
    'PYMODULE'),
+  ('backend.auth_service',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\auth_service.py',
+   'PYMODULE'),
   ('backend.cloud_server',
-   'c:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab '
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
    'Intel\\backend\\cloud_server.py',
    'PYMODULE'),
   ('backend.edge_server',
-   'c:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab '
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
    'Intel\\backend\\edge_server.py',
    'PYMODULE'),
+  ('backend.email_provider',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\email_provider.py',
+   'PYMODULE'),
   ('backend.models',
-   'c:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab Intel\\backend\\models.py',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\models.py',
    'PYMODULE'),
   ('backend.report_generator',
-   'c:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab '
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
    'Intel\\backend\\report_generator.py',
    'PYMODULE'),
   ('backend.seed_data',
-   'c:\\Users\\ANANTH KARTHIK\\Desktop\\CloudLab Intel\\backend\\seed_data.py',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\seed_data.py',
+   'PYMODULE'),
+  ('backend.sms_provider',
+   'C:\\Users\\ANANTH KARTHIK\\Desktop\\Before OTP\\CloudLab '
+   'Intel\\backend\\sms_provider.py',
    'PYMODULE'),
   ('base64',
    'C:\\Users\\ANANTH '
@@ -1076,6 +1099,30 @@
   ('email.message',
    'C:\\Users\\ANANTH '
    'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\email\\message.py',
+   'PYMODULE'),
+  ('email.mime',
+   'C:\\Users\\ANANTH '
+   'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\email\\mime\\__init__.py',
+   'PYMODULE'),
+  ('email.mime.application',
+   'C:\\Users\\ANANTH '
+   'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\email\\mime\\application.py',
+   'PYMODULE'),
+  ('email.mime.base',
+   'C:\\Users\\ANANTH '
+   'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\email\\mime\\base.py',
+   'PYMODULE'),
+  ('email.mime.multipart',
+   'C:\\Users\\ANANTH '
+   'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\email\\mime\\multipart.py',
+   'PYMODULE'),
+  ('email.mime.nonmultipart',
+   'C:\\Users\\ANANTH '
+   'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\email\\mime\\nonmultipart.py',
+   'PYMODULE'),
+  ('email.mime.text',
+   'C:\\Users\\ANANTH '
+   'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\email\\mime\\text.py',
    'PYMODULE'),
   ('email.parser',
    'C:\\Users\\ANANTH '
@@ -3394,6 +3441,10 @@
   ('site',
    'C:\\Users\\ANANTH '
    'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site.py',
+   'PYMODULE'),
+  ('smtplib',
+   'C:\\Users\\ANANTH '
+   'KARTHIK\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\smtplib.py',
    'PYMODULE'),
   ('socket',
    'C:\\Users\\ANANTH '

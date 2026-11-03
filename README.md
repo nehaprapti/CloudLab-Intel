@@ -1,4 +1,3 @@
-
 # CloudLab Intelligence: An Offline-First Edge-Cloud Platform for Student Digital Activity Analytics and Predictive Computer Lab Resource Optimization
 
 **Department of Information Technology**  

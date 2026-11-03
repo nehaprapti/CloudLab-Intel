@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CloudLab Intelligence Secure Mobile OTP Authentication</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        edge: '#10b981',
+                        cloud: '#6366f1',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- Top Header -->
+    <header class="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-40 px-6 py-3.5 shadow-xs">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3.5">
+                <div class="h-11 w-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20 ring-1 ring-blue-500/20">
+                    <i data-lucide="cpu" class="h-6 w-6 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-bold tracking-tight text-slate-900">CloudLab Intelligence</h1>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">Mini Project U23IT705</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Sona College of Technology • Dept of IT • Batch 10 (2026-27)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-slate-500">
+                <i data-lucide="shield-check" class="h-4 w-4 text-emerald-600"></i>
+                <span class="font-medium hidden sm:inline">Secure Mobile OTP Gateway</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 flex items-center justify-center p-4 sm:p-6">
+        <div class="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-fade-in">
+            
+            <!-- Card Header -->
+            <div class="p-6 pb-4 border-b border-slate-100 text-center space-y-1">
+                <div class="inline-flex h-12 w-12 rounded-xl bg-blue-50 text-blue-600 items-center justify-center mb-1 border border-blue-200 shadow-xs">
+                    <i data-lucide="smartphone" class="h-6 w-6"></i>
+                </div>
+                <h2 class="text-xl font-bold text-slate-900">Sign In with Mobile OTP</h2>
+                <p class="text-xs text-slate-500">Enter your registered mobile number to receive a secure time-limited verification code.</p>
+            </div>
+
+            <!-- Error / Warning Alert Box -->
+            <div id="auth-alert" class="hidden mx-6 mt-4 p-3.5 rounded-xl border text-xs flex items-start gap-2.5">
+                <i data-lucide="alert-circle" id="auth-alert-icon" class="h-4 w-4 flex-shrink-0 mt-0.5"></i>
+                <span id="auth-alert-msg" class="leading-relaxed font-medium"></span>
+            </div>
+
+            <!-- STEP 1: Enter Mobile Number -->
+            <div id="step-phone" class="p-6 space-y-4">
+                
+                <div>
+                    <label class="block text-slate-700 text-xs font-bold mb-1.5" for="phone-input">
+                        Mobile Number <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <!-- Country Code Selector (Defaults to India +91) -->
+                        <div class="relative w-32 flex-shrink-0">
+                            <select id="country-code-select" class="w-full px-2.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-xs font-semibold focus:bg-white focus:outline-none focus:border-blue-500 transition">
+                                <option value="+91" selected>🇮🇳 +91 (India)</option>
+                                <option value="+1">🇺🇸 +1 (USA/Can)</option>
+                                <option value="+44">🇬🇧 +44 (UK)</option>
+                                <option value="+971">🇦🇪 +971 (UAE)</option>
+                                <option value="+65">🇸🇬 +65 (SGP)</option>
+                                <option value="+61">🇦🇺 +61 (Aus)</option>
+                                <option value="+49">🇩🇪 +49 (Ger)</option>
+                                <option value="+81">🇯🇵 +81 (Jpn)</option>
+                            </select>
+                        </div>
+                        <!-- Phone Input -->
+                        <div class="relative flex-1">
+                            <input 
+                                type="tel" 
+                                id="phone-input" 
+                                placeholder="9876543210" 
+                                maxlength="15"
+                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 text-sm font-mono tracking-wide focus:bg-white focus:outline-none focus:border-blue-500 transition"
+                            >
+                        </div>
+                    </div>
+                    <p id="phone-validation-hint" class="text-[11px] text-slate-400 mt-1">
+                        Enter 10-digit mobile number without leading zero.
+                    </p>
+                </div>
+
+                <!-- Registration Fields (for new students / faculty) -->
+                <div class="pt-2 border-t border-slate-100 space-y-3">
+                    <button type="button" id="toggle-reg-details" class="text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 transition">
+                        <i data-lucide="chevron-right" id="reg-toggle-icon" class="h-3.5 w-3.5 transition-transform"></i>
+                        <span>First time logging in? Add Name / Reg No (Optional)</span>
+                    </button>
+                    
+                    <div id="optional-reg-box" class="hidden space-y-3 pt-1 text-xs">
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1" for="user-name-input">Full Name:</label>
+                            <input 
+                                type="text" 
+                                id="user-name-input" 
+                                placeholder="e.g. Jayakumar M"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500"
+                            >
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-semibold mb-1" for="user-reg-input">Register Number:</label>
+                            <input 
+                                type="text" 
+                                id="user-reg-input" 
+                                placeholder="e.g. 61782323106044"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono focus:bg-white focus:outline-none focus:border-blue-500"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Send OTP Button -->
+                <button 
+                    type="button" 
+                    id="btn-send-otp"
+                    class="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-sm rounded-xl transition shadow-md shadow-blue-600/20 flex items-center justify-center gap-2"
+                >
+                    <i data-lucide="send" class="h-4 w-4"></i>
+                    <span>Send Verification OTP</span>
+                </button>
+
+                <div class="pt-2 text-[11px] text-slate-500 text-center flex items-center justify-center gap-4">
+                    <span class="flex items-center gap-1"><i data-lucide="lock" class="h-3 w-3 text-emerald-600"></i> 256-Bit Salted Hash</span>
+                    <span class="flex items-center gap-1"><i data-lucide="clock" class="h-3 w-3 text-blue-600"></i> 5 Min Expiry</span>
+                    <span class="flex items-center gap-1"><i data-lucide="shield" class="h-3 w-3 text-indigo-600"></i> Anti-Replay</span>
+                </div>
+            </div>
+
+            <!-- STEP 2: Enter & Verify OTP (Hidden by default) -->
+            <div id="step-otp" class="hidden p-6 space-y-4">
+                
+                <div class="p-3.5 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between text-xs">
+                    <div>
+                        <div class="text-slate-500 font-medium">OTP delivered to:</div>
+                        <div id="display-masked-phone" class="font-mono font-bold text-blue-900 text-sm mt-0.5">+91 ••••••••••</div>
+                    </div>
+                    <button type="button" id="btn-change-phone" class="px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-blue-700 border border-blue-300 text-[11px] font-semibold transition">
+                        Edit Number
+                    </button>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 text-xs font-bold mb-1.5" for="otp-input">
+                        Enter 6-Digit OTP Code <span class="text-red-500">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="otp-input" 
+                        maxlength="6" 
+                        placeholder="••••••"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-center text-slate-900 text-2xl font-mono tracking-[0.5em] font-extrabold focus:bg-white focus:outline-none focus:border-blue-500 transition"
+                    >
+                    <p class="text-[11px] text-slate-400 mt-1 text-center">
+                        Code expires in 5 minutes • Maximum 3 verification attempts
+                    </p>
+                </div>
+
+                <!-- Verify OTP Button -->
+                <button 
+                    type="button" 
+                    id="btn-verify-otp"
+                    class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-sm rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
+                >
+                    <i data-lucide="check-circle" class="h-4 w-4"></i>
+                    <span>Verify OTP & Enter CloudLab</span>
+                </button>
+
+                <!-- Resend Cooldown Section -->
+                <div class="text-center pt-2 text-xs">
+                    <span id="cooldown-container" class="text-slate-500 font-medium">
+                        Resend OTP in <span id="cooldown-timer" class="font-mono font-bold text-blue-700">60</span>s
+                    </span>
+                    <button 
+                        type="button" 
+                        id="btn-resend-otp" 
+                        class="hidden text-blue-600 hover:text-blue-800 font-bold underline transition"
+                    >
+                        Didn't receive code? Resend OTP
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer Notes -->
+            <div class="bg-slate-50 p-4 border-t border-slate-100 text-center text-[11px] text-slate-500 space-y-1">
+                <p>CloudLab Intelligence Offline-First Edge-Cloud Platform</p>
+                <p class="text-[10px] text-slate-400">Department of Information Technology • Sona College of Technology</p>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 hidden px-4 py-3 rounded-xl bg-white border border-slate-300 text-slate-900 text-xs shadow-xl flex items-center gap-3 animate-fade-in font-medium">
+        <i data-lucide="check-circle" id="toast-icon" class="h-5 w-5 text-emerald-600"></i>
+        <span id="toast-message">Operation successful!</span>
+    </div>
+
+    <script src="/login.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

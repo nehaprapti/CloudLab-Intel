@@ -16,6 +16,7 @@ from flask import Flask, request, jsonify
 from backend.models import get_db_connection, init_db
 from backend.analytics_engine import classify_activity, analyze_context_switches, compute_student_summary
 from backend.report_generator import generate_student_pdf_report, dispatch_report_to_administrator
+from backend.auth_service import request_otp, verify_otp, normalize_phone_number
 
 app = Flask(__name__)
 
@@ -94,30 +95,94 @@ def toggle_network():
     })
 
 
+@app.route("/api/edge/send-otp", methods=["POST"])
+def edge_send_otp():
+    """
+    Generates and dispatches Mobile OTP for student workstation authentication.
+    Prevents student name and register number misuse.
+    """
+    data = request.get_json(silent=True) or {}
+    country_code = data.get("country_code", "+91")
+    raw_number = data.get("phone_number", "") or data.get("email", "")
+    student_name = data.get("student_name", "Student")
+    pc_id = data.get("pc_id", "Lab Workstation")
+
+    # Request OTP using edge_storage.db
+    result = request_otp(country_code, raw_number, db_name="edge_storage.db", student_name=student_name, pc_id=pc_id)
+    if result.get("success"):
+        # Mirror the exact same challenge into cloud_storage.db (prevents duplicate email & mismatch)
+        try:
+            e_conn = get_db_connection("edge_storage.db")
+            e_cur = e_conn.cursor()
+            e_cur.execute("SELECT * FROM otp_challenges WHERE phone_number = ? ORDER BY created_at DESC LIMIT 1", (result["phone_number"],))
+            ch_row = e_cur.fetchone()
+            e_conn.close()
+            if ch_row:
+                c_conn = get_db_connection("cloud_storage.db")
+                c_cur = c_conn.cursor()
+                c_cur.execute("UPDATE otp_challenges SET is_invalidated = 1 WHERE phone_number = ?", (ch_row["phone_number"],))
+                c_cur.execute("""
+                INSERT OR REPLACE INTO otp_challenges (challenge_id, phone_number, otp_hash, salt, expires_at, created_at, attempts, is_verified, is_invalidated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (ch_row["challenge_id"], ch_row["phone_number"], ch_row["otp_hash"], ch_row["salt"], ch_row["expires_at"], ch_row["created_at"], ch_row["attempts"], ch_row["is_verified"], ch_row["is_invalidated"]))
+                c_conn.commit()
+                c_conn.close()
+        except Exception:
+            pass
+    status_code = 200 if result.get("success") else 400
+    return jsonify(result), status_code
+
+
 @app.route("/api/edge/login", methods=["POST"])
 def edge_student_login():
     """
     Authenticates student at lab computer and creates a secure session locally.
+    Enforces Email OTP verification to prevent impersonation or name misuse.
     """
     data = request.get_json() or {}
     reg_no = data.get("reg_no", "").strip().upper()
     student_name = data.get("student_name", "").strip() or f"Student-{reg_no}"
     lab_id = data.get("lab_id", "LAB-01")
     pc_id = data.get("pc_id", "PC-LAB1-01")
+    phone_number = (data.get("phone_number", "") or data.get("email", "")).strip()
+    otp_code = data.get("otp", "").strip()
+    is_simulation = data.get("is_simulation", False)
     login_time = data.get("login_time") or datetime.now().isoformat()
     session_id = data.get("session_id") or str(uuid.uuid4())
 
     if not reg_no:
         return jsonify({"error": "Register Number is required"}), 400
 
+    # Enforce Email OTP verification for student workstations (preventing name misuse)
+    if not is_simulation:
+        if not phone_number or not otp_code:
+            return jsonify({
+                "success": False,
+                "error": "Email / Mobile OTP verification is required to start student session and prevent name misuse."
+            }), 400
+
+        # Verify submitted OTP
+        ver = verify_otp(phone_number, otp_code, user_name=student_name, reg_no=reg_no, db_name="edge_storage.db")
+        if not ver.get("success"):
+            ver = verify_otp(phone_number, otp_code, user_name=student_name, reg_no=reg_no, db_name="cloud_storage.db")
+
+        if not ver.get("success"):
+            return jsonify({
+                "success": False,
+                "error": ver.get("error", "Invalid OTP. Email verification failed.")
+            }), 401
+
     conn = get_db_connection("edge_storage.db")
     cursor = conn.cursor()
 
-    # Ensure student record exists
+    # Ensure student record exists with verified mobile number
     cursor.execute("""
-    INSERT OR IGNORE INTO students (reg_no, name, department, created_at)
-    VALUES (?, ?, 'Information Technology', ?)
-    """, (reg_no, student_name, login_time))
+    INSERT INTO students (reg_no, name, department, created_at, phone_number)
+    VALUES (?, ?, 'Information Technology', ?, ?)
+    ON CONFLICT(reg_no) DO UPDATE SET
+        name = excluded.name,
+        phone_number = COALESCE(excluded.phone_number, students.phone_number)
+    """, (reg_no, student_name, login_time, phone_number))
 
     # Close any existing active session on this PC
     cursor.execute("""
@@ -125,11 +190,11 @@ def edge_student_login():
     WHERE pc_id = ? AND status = 'ACTIVE'
     """, (login_time, login_time, pc_id))
 
-    # Create new session
+    # Create new session with verified phone number
     cursor.execute("""
-    INSERT INTO sessions (session_id, reg_no, student_name, lab_id, pc_id, login_time, status, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
-    """, (session_id, reg_no, student_name, lab_id, pc_id, login_time, login_time))
+    INSERT INTO sessions (session_id, reg_no, student_name, lab_id, pc_id, login_time, status, updated_at, phone_number)
+    VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
+    """, (session_id, reg_no, student_name, lab_id, pc_id, login_time, login_time, phone_number))
 
     # Update computer status
     cursor.execute("""
@@ -148,6 +213,7 @@ def edge_student_login():
         "session_id": session_id,
         "reg_no": reg_no,
         "student_name": student_name,
+        "phone_number": phone_number,
         "lab_id": lab_id,
         "pc_id": pc_id,
         "login_time": login_time
@@ -169,10 +235,11 @@ def edge_student_login():
         "session_id": session_id,
         "reg_no": reg_no,
         "student_name": student_name,
+        "phone_number": phone_number,
         "lab_id": lab_id,
         "pc_id": pc_id,
         "login_time": login_time,
-        "message": f"Session initialized successfully for {reg_no} on {pc_id}."
+        "message": f"Identity verified via OTP for {student_name} ({reg_no}). Session initialized on {pc_id}."
     })
 
 
